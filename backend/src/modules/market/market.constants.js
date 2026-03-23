@@ -1,5 +1,6 @@
 export const MARKET_INTERVALS = ['1h', '4h', '1day'];
 export const BACKTEST_LOOKBACKS = ['3M', '6M', '12M'];
+export const BACKTEST_MODES = ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'];
 
 export const MARKET_SYMBOLS = [
     { symbol: 'USD/INR', provider: 'twelvedata', apiSymbol: 'USD/INR', type: 'forex' },
@@ -84,4 +85,19 @@ export const validateBacktestLookback = (lookback = '6M') => {
     }
 
     return cleanLookback;
+};
+
+export const normalizeBacktestMode = (mode) => mode?.trim().toUpperCase() ?? '';
+
+export const validateBacktestMode = (mode = 'BALANCED') => {
+    const cleanMode = normalizeBacktestMode(mode || 'BALANCED');
+
+    if (!BACKTEST_MODES.includes(cleanMode)) {
+        const error = new Error(`Invalid mode: ${cleanMode}. Allowed: ${BACKTEST_MODES.join(', ')}`);
+        error.statusCode = 400;
+        error.allowedModes = BACKTEST_MODES;
+        throw error;
+    }
+
+    return cleanMode;
 };

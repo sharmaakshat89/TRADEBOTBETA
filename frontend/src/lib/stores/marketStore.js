@@ -4,6 +4,7 @@ const initialState = {
 	symbol: 'BTC/USDT', // default to Binance-backed crypto for deeper history
 	interval: '1h', // backend default interval
 	backtestLookback: '6M', // default backtest range
+	backtestMode: 'BALANCED', // default backtest strictness
 	candles: [], // live candle feed
 	signal: null, // latest quant signal payload
 	aiAnalysis: null, // latest ai payload
@@ -29,6 +30,11 @@ const createMarketStore = () => {
 			update((state) => ({
 				...state,
 				backtestLookback: lookback ?? state.backtestLookback
+			})),
+		setBacktestMode: (mode) =>
+			update((state) => ({
+				...state,
+				backtestMode: mode ?? state.backtestMode
 			})),
 		setCandles: (candles) =>
 			update((state) => ({

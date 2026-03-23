@@ -2,6 +2,7 @@
 
 import express        from 'express'
 import rateLimit      from 'express-rate-limit'
+import { ipKeyGenerator } from 'express-rate-limit'
 import { protect }    from '../../auth/middleware/auth.middleware.js'
 import { runBacktestController } from '../controllers/backtest.controller.js'
 
@@ -89,7 +90,7 @@ const userRateLimiter = rateLimit({
     keyGenerator: (req) => {
         // req.user — protect middleware ne JWT decode karke attach kiya
         // req.user._id = MongoDB ObjectId (string form)
-        return req.user?._id?.toString() ?? req.ip
+        return req.user?._id?.toString() ?? ipKeyGenerator(req)
         // Fallback req.ip kyun?
         // Agar protect middleware ne user attach nahi kiya
         // (edge case — token expire hone ke baad)

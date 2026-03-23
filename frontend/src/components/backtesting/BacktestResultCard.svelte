@@ -21,8 +21,15 @@
 		<div class="backtest-result__meta">
 			<span class="pill">Range: {result?.lookback ?? '6M'}</span>
 			<span class="pill">Interval: {result?.interval ?? '1h'}</span>
+			<span class="pill">Mode: {result?.mode ?? 'BALANCED'}</span>
 			<span class="pill">Candles: {result?.candlesAnalyzed ?? 0}</span>
 		</div>
+		{#if result?.emptyState}
+			<div class="backtest-result__notice">
+				<h3>{result.emptyState.title}</h3>
+				<p>{result.emptyState.message}</p>
+			</div>
+		{/if}
 		<div class="stat-grid">
 			<div class="stat-card">
 				<p class="stat-label">Total Trades</p>
@@ -81,5 +88,22 @@
 		flex-wrap: wrap;
 		gap: 10px;
 		margin-bottom: 18px;
+	}
+
+	.backtest-result__notice {
+		margin-bottom: 18px;
+		padding: 16px;
+		border-radius: 18px;
+		border: 1px solid rgba(151, 183, 255, 0.12);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.backtest-result__notice h3 {
+		margin-bottom: 6px;
+		font-size: 1rem;
+	}
+
+	.backtest-result__notice p {
+		color: var(--text-soft);
 	}
 </style>

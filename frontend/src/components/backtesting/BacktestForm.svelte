@@ -3,15 +3,18 @@
 		symbol = 'BTC/USDT', // default symbol
 		interval = '1h', // default interval
 		lookback = '6M', // default historical range
+		mode = 'BALANCED', // default strategy strictness
 		loading = false, // loading state
 		allowedSymbols = ['USD/INR', 'EUR/INR', 'GBP/INR', 'JPY/INR'], // backend allowed symbols
 		symbolGroups = [], // grouped market options
 		allowedIntervals = ['1h', '4h', '1day'], // backend allowed intervals
 		allowedLookbacks = ['3M', '6M', '12M'], // historical ranges
+		allowedModes = ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'], // strategy modes
 		onSubmit = () => {}, // form submit callback
 		onSymbolChange = () => {}, // symbol change callback
 		onIntervalChange = () => {}, // interval change callback
-		onLookbackChange = () => {} // lookback change callback
+		onLookbackChange = () => {}, // lookback change callback
+		onModeChange = () => {} // mode change callback
 	} = $props();
 </script>
 
@@ -60,6 +63,15 @@
 				{/each}
 			</select>
 		</div>
+
+		<div class="field">
+			<label for="backtest-mode">Mode</label>
+			<select id="backtest-mode" class="select" value={mode} onchange={onModeChange}>
+				{#each allowedModes as option}
+					<option value={option}>{option}</option>
+				{/each}
+			</select>
+		</div>
 	</div>
 
 	<button class="btn btn-primary" type="submit" disabled={loading}>
@@ -83,7 +95,7 @@
 
 	.backtest-form__grid {
 		display: grid; /* controls grid */
-		grid-template-columns: repeat(3, minmax(0, 1fr)); /* three controls */
+		grid-template-columns: repeat(4, minmax(0, 1fr)); /* four controls */
 		gap: 14px; /* control gap */
 	}
 

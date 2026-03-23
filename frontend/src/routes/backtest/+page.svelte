@@ -14,6 +14,7 @@
 		allowedIntervals as defaultIntervals,
 		allowedSymbols as defaultSymbols,
 		backtestLookbacks as defaultLookbacks,
+		backtestModes as defaultModes,
 		symbolGroups
 	} from '$lib/config/markets'; // shared market options
 
@@ -24,6 +25,7 @@
 	let allowedSymbols = $state(defaultSymbols); // default backend symbols
 	let allowedIntervals = $state(defaultIntervals); // default backend intervals
 	let allowedLookbacks = $state(defaultLookbacks); // default backend lookbacks
+	let allowedModes = $state(defaultModes); // default backtest modes
 
 	const runBacktest = async (event) => {
 		event.preventDefault(); // stop native submit
@@ -37,7 +39,8 @@
 			const response = await api.post('/backtest', {
 				symbol: selection.symbol, // backend body symbol
 				interval: selection.interval, // backend body interval
-				lookback: selection.backtestLookback // historical range preset
+				lookback: selection.backtestLookback, // historical range preset
+				mode: selection.backtestMode // strategy mode preset
 			});
 
 			source = response?.data?.source ?? ''; // track cache/api source
@@ -56,6 +59,10 @@
 
 			if (Array.isArray(payload?.allowedLookbacks)) {
 				allowedLookbacks = payload.allowedLookbacks; // adopt backend lookbacks
+			}
+
+			if (Array.isArray(payload?.allowedModes)) {
+				allowedModes = payload.allowedModes; // adopt backend modes
 			}
 		} finally {
 			loading = false; // always stop loading
@@ -93,15 +100,18 @@
 		symbol={$marketStore.symbol}
 		interval={$marketStore.interval}
 		lookback={$marketStore.backtestLookback}
+		mode={$marketStore.backtestMode}
 		loading={loading}
 		allowedSymbols={allowedSymbols}
 		symbolGroups={symbolGroups}
 		allowedIntervals={allowedIntervals}
 		allowedLookbacks={allowedLookbacks}
+		allowedModes={allowedModes}
 		onSubmit={runBacktest}
 		onSymbolChange={(event) => marketStore.setSelection({ symbol: event.currentTarget.value })}
 		onIntervalChange={(event) => marketStore.setSelection({ interval: event.currentTarget.value })}
 		onLookbackChange={(event) => marketStore.setBacktestLookback(event.currentTarget.value)}
+		onModeChange={(event) => marketStore.setBacktestMode(event.currentTarget.value)}
 	/>
 
 	{#if pageError}

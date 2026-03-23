@@ -3,6 +3,11 @@ import { SuperTrend } from '@debut/indicators';
 import NodeCache from 'node-cache';
 
 const signalCache = new NodeCache({ stdTTL: 60 });
+const SIGNAL_MODE_CONFIG = {
+    CONSERVATIVE: { scoreThreshold: 0.7, adxThreshold: 25 },
+    BALANCED: { scoreThreshold: 0.55, adxThreshold: 20 },
+    AGGRESSIVE: { scoreThreshold: 0.4, adxThreshold: 18 }
+};
 
 // =============================================================================
 // 🧠 WEIGHT TABLE — sum must = 1.0
@@ -17,7 +22,9 @@ const signalCache = new NodeCache({ stdTTL: 60 });
 // MACD_n  (MACD direction)   → 0.05
 // TOTAL                      → 1.00 ✅
 // =============================================================================
-export const getUnifiedSignal = (symbol, interval, candles) => {
+export const getUnifiedSignal = (symbol, interval, candles, options = {}) => {
+    const mode = options.mode ?? 'CONSERVATIVE';
+    const thresholds = SIGNAL_MODE_CONFIG[mode] ?? SIGNAL_MODE_CONFIG.CONSERVATIVE;
 
     // -------------------------------------------------------------------------
     // 🛡️ INPUT VALIDATION
@@ -37,7 +44,7 @@ export const getUnifiedSignal = (symbol, interval, candles) => {
     // Hinglish: symbol + interval + last candle ka time = unique key
     // optional chaining (?.) — agar last candle malformed ho toh crash nahi
     // -------------------------------------------------------------------------
-    const cacheKey = `sig_${symbol}_${interval}_${candles?.[candles.length - 1]?.time}`;
+    const cacheKey = `sig_${symbol}_${interval}_${mode}_${candles?.[candles.length - 1]?.time}`;
     const cachedData = signalCache.get(cacheKey);
     if (cachedData) return cachedData;
 
@@ -257,8 +264,16 @@ export const getUnifiedSignal = (symbol, interval, candles) => {
         // =====================================================================
         let signal = "NO_TRADE";
 
-        if      (C_t >  0.7 && ADX_val > 25 && ST_bias ===  1) signal = "BUY";
-        else if (C_t < -0.7 && ADX_val > 25 && ST_bias === -1) signal = "SELL";
+        if (
+            C_t > thresholds.scoreThreshold &&
+            ADX_val > thresholds.adxThreshold &&
+            ST_bias === 1
+        ) signal = "BUY";
+        else if (
+            C_t < -thresholds.scoreThreshold &&
+            ADX_val > thresholds.adxThreshold &&
+            ST_bias === -1
+        ) signal = "SELL";
 
         // =====================================================================
         // 📦 RESULT OBJECT
@@ -276,6 +291,7 @@ export const getUnifiedSignal = (symbol, interval, candles) => {
     const result = {
     success: true,
     symbol,
+    mode,
     signal,
     score: parseFloat(C_t.toFixed(4)),
     risk: {

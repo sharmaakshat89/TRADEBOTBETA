@@ -3,6 +3,7 @@ import {
     ALLOWED_INTERVALS,
     ALLOWED_SYMBOLS,
     BACKTEST_LOOKBACKS,
+    BACKTEST_MODES,
     getMarketSymbolConfig
 } from '../../market/market.constants.js';
 import { fetchMarketData } from '../../market/services/market.service.js';
@@ -34,7 +35,7 @@ const getOutputSizeForLookback = (symbol, interval, lookback) => {
     return Math.min(requestedSize, providerMax);
 };
 
-export const runBacktestService = async (symbol, interval, lookback = '6M') => {
+export const runBacktestService = async (symbol, interval, lookback = '6M', mode = 'BALANCED') => {
     try {
         if (!ALLOWED_SYMBOLS.includes(symbol)) {
             const error = new Error(`Invalid symbol: ${symbol}. Allowed: ${ALLOWED_SYMBOLS.join(', ')}`);
@@ -55,7 +56,14 @@ export const runBacktestService = async (symbol, interval, lookback = '6M') => {
             throw error;
         }
 
-        const cacheKey = `backtest_${symbol}_${interval}_${lookback}`;
+        if (!BACKTEST_MODES.includes(mode)) {
+            const error = new Error(`Invalid mode: ${mode}. Allowed: ${BACKTEST_MODES.join(', ')}`);
+            error.statusCode = 400;
+            error.allowedModes = BACKTEST_MODES;
+            throw error;
+        }
+
+        const cacheKey = `backtest_${symbol}_${interval}_${lookback}_${mode}`;
         const cached = backtestCache.get(cacheKey);
 
         if (cached) {
@@ -85,19 +93,14 @@ export const runBacktestService = async (symbol, interval, lookback = '6M') => {
             throw error;
         }
 
-        const backtestResult = runBacktest(symbol, interval, candles);
-
-        if (!backtestResult.success) {
-            const error = new Error(backtestResult.error || 'Backtest engine failed');
-            error.statusCode = 500;
-            throw error;
-        }
+        const backtestResult = runBacktest(symbol, interval, candles, { mode });
 
         const enrichedResult = {
             ...backtestResult,
             symbol,
             interval,
             lookback,
+            mode,
             requestedCandles: outputsize,
             candlesAnalyzed: candles.length,
             dataFrom: new Date(candles[0].time * 1000).toISOString(),

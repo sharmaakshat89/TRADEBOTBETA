@@ -36,7 +36,11 @@ Backend  → Frontend   (data BHEJNA — response) */
         }
         return res.status(200).json({
             success:true,
-            data:signal
+            data:{
+                ...signal,
+                currentPrice: marketData.data.at(-1)?.close ?? null,
+                candles: marketData.data
+            }
         })//we get as resp : { signal: 'BUY', score: 0.82, risk: { stopLoss, takeProfit },
         //   indicators: { rsi, adx, supertrend, hma, macdHist, bbWidth } }
 

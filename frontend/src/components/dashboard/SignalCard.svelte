@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte'; // animate card on updates
 	import { gsap } from 'gsap'; // card animation
 
-	let { signal = null } = $props(); // quant signal payload
+	let { signal = null, currentPrice = null } = $props(); // quant signal payload
 
 	let cardRef = $state(null); // card DOM ref
 
@@ -15,6 +15,11 @@
 	const confidence = $derived(() => {
 		const score = Number(signal?.score ?? 0); // normalize score
 		return Math.min(Math.max(Math.abs(score) * 100, 0), 100).toFixed(1); // percent clamp
+	});
+
+	const livePrice = $derived(() => {
+		const value = Number(currentPrice ?? signal?.currentPrice ?? 0);
+		return Number.isFinite(value) && value > 0 ? value.toFixed(4) : '--';
 	});
 
 	onMount(() => {
@@ -66,6 +71,10 @@
 	</div>
 
 	<div class="stat-grid">
+		<div class="stat-card">
+			<p class="stat-label">Current Price</p>
+			<p class="stat-value mono">{livePrice()}</p>
+		</div>
 		<div class="stat-card">
 			<p class="stat-label">Stop Loss</p>
 			<p class="stat-value mono">{signal?.risk?.stopLoss ?? '--'}</p>

@@ -35,7 +35,9 @@
 				}
 			});
 
-			marketStore.setSignal(response?.data?.data ?? null); // store raw signal payload
+			const payload = response?.data?.data ?? {}; // normalize signal payload
+			marketStore.setSignal(payload ?? null); // store raw signal payload
+			marketStore.setCandles(payload?.candles ?? []); // ensure chart has immediate data
 		} catch (requestError) {
 			pageError =
 				requestError?.response?.data?.error ??
@@ -152,7 +154,7 @@
 					<Loader label="Loading signal" />
 				</div>
 			{:else}
-				<SignalCard signal={$marketStore.signal} />
+				<SignalCard signal={$marketStore.signal} currentPrice={$marketStore.candles.at(-1)?.close} />
 			{/if}
 
 			<AIAdvicePanel aiValidation={$marketStore.aiAnalysis} loading={loadingAI} error={aiError} />

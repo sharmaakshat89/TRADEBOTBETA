@@ -13,9 +13,11 @@ const connectDB= async()=>{
         })
         // cap initial DB handshake wait so startup errors surface quickly
         console.log('connected to database')
+        return mongoose.connection
     }
     catch(err){
-        console.log(`error:${err}`)
+        console.error(`database connection error: ${err.message}`)
+        throw err
     }
 }
 
