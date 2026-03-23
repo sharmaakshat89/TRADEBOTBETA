@@ -1,0 +1,57 @@
+import jwt from 'jsonwebtoken'
+
+import User from '../models/user.model.js'
+/*Public routes (NO protect):
+POST /register     ← naya user, token nahi hai
+POST /login        ← token lene aa raha hai
+
+Protected routes (protect lagega):
+GET  /profile      ← sirf logged in user dekhe
+POST /trade        ← sirf logged in user trade kare
+GET  /portfolio    ← sirf apna data dekhe */
+export const protect= async (req,res,next)=>{
+    let token
+
+    const authHeader =
+        req.headers.authorization ||
+        req.headers.authorisation
+    // accept both standard and typo variants of the auth header
+
+    if(authHeader && authHeader.startsWith('Bearer ')){
+        //check if req has a bearer token before parsing
+        try{
+            token=authHeader.split(' ')[1]// split the header and extract token out of it
+            const decoded = jwt.verify(token,process.env.JWT_SECRET)
+            // jwt.verify() do kaam karta hai ek saath:
+            // 1. signature verify karta hai — token tamper toh nahi hua?
+            // 2. token decode karta hai — andar ka data nikalta hai
+            // agar token expired ya invalid ho — EXCEPTION throw hogi
+            // decoded object kuch aisa dikhega: { id: '64abc...', iat: 1234, exp: 5678 }
+            // iat = issued at (kab banaya), exp = expiry time
+            // JWT_SECRET wahi hona chahiye jo token BANATE waqt use hua tha
+            // alag secret doge toh verify fail ho jaayega
+            req.user = await User.findById(decoded.id).select('-password')
+            if (!req.user) {
+                return res.status(401).json({ success: false, message: 'User not found' })
+            }
+            return next()
+            //find user using decoded.id, then after excluding passsword , send the complete data of the user as req.user
+            
+        }
+        catch(error){
+            console.error('AUTH MDW ERR:', error.message)
+            return res.status(401).json({
+                success:false,
+                message:'NOT AUTHORISED'
+            })
+            
+        }
+
+    }
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: 'No authentication token provided'
+        })
+    }
+}
