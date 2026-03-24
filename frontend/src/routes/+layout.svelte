@@ -26,6 +26,12 @@
 
 <Navbar />
 
-<main bind:this={contentRef}>
+<main class="app-shell" bind:this={contentRef}>
 	{@render children?.()}
 </main>
+
+<style>
+	.app-shell {
+		padding-top: 10px;
+	}
+</style>

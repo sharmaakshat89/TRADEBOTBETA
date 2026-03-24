@@ -164,60 +164,102 @@
 
 <style>
 	.dashboard {
-		padding: 30px 0 48px; /* dashboard page spacing */
-		display: grid; /* stack dashboard sections */
-		gap: 18px; /* section gap */
+		width: min(100% - 12px, 1400px);
+		padding: 14px 0 40px;
+		display: grid;
+		gap: 12px;
 	}
 
 	.dashboard__toolbar {
-		padding: 20px; /* toolbar padding */
-		display: flex; /* toolbar layout */
-		align-items: end; /* align controls and actions */
-		justify-content: space-between; /* split toolbar */
-		gap: 16px; /* toolbar gap */
-		flex-wrap: wrap; /* wrap on smaller screens */
+		padding: 12px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
 	}
 
 	.dashboard__toolbar-grid {
-		display: grid; /* form controls grid */
-		grid-template-columns: repeat(2, minmax(180px, 1fr)); /* selector columns */
-		gap: 14px; /* selector gap */
-		flex: 1; /* expand left side */
+		display: grid;
+		grid-template-columns: repeat(2, minmax(150px, 190px));
+		gap: 10px;
+		flex: 1;
 	}
 
 	.dashboard__toolbar-actions {
-		display: flex; /* action row */
-		align-items: center; /* align action controls */
-		gap: 10px; /* action gap */
-		flex-wrap: wrap; /* wrap on small screens */
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
 	}
 
 	.dashboard__grid {
-		display: grid; /* main dashboard grid */
-		grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.9fr); /* main + sidebar */
-		gap: 18px; /* grid gap */
-		align-items: start; /* top align columns */
+		display: grid;
+		grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.82fr);
+		gap: 12px;
+		align-items: start;
 	}
 
 	.dashboard__main,
 	.dashboard__side {
-		display: grid; /* stack child panels */
-		gap: 18px; /* child gap */
+		display: grid;
+		gap: 12px;
 	}
 
 	.dashboard__loading {
-		padding: 28px; /* loading panel padding */
+		padding: 20px;
 	}
 
 	@media (max-width: 1024px) {
 		.dashboard__grid {
-			grid-template-columns: 1fr; /* stack columns */
+			grid-template-columns: 1fr;
+		}
+
+		.dashboard__side {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 
-	@media (max-width: 700px) {
+	@media (max-width: 760px) {
+		.dashboard {
+			width: min(100% - 8px, 1400px);
+			padding-top: 8px;
+		}
+
 		.dashboard__toolbar-grid {
-			grid-template-columns: 1fr; /* stack selectors */
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			width: 100%;
+		}
+
+		.dashboard__toolbar-actions {
+			width: 100%;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.dashboard__toolbar-actions .pill {
+			grid-column: 1 / -1;
+			justify-content: center;
+		}
+
+		.dashboard__side {
+			grid-template-columns: 1fr;
+		}
+
+		.dashboard__main,
+		.dashboard__side {
+			gap: 10px;
+		}
+	}
+
+	@media (max-width: 520px) {
+		.dashboard__toolbar {
+			padding: 10px;
+		}
+
+		.dashboard__toolbar-grid,
+		.dashboard__toolbar-actions {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

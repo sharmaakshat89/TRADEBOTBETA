@@ -10,6 +10,13 @@
 	let emaSeries = null;
 	let resizeObserver = null;
 
+	const getChartHeight = () => {
+		if (typeof window === 'undefined') return 560;
+		if (window.innerWidth <= 640) return Math.max(420, Math.min(window.innerHeight * 0.62, 560));
+		if (window.innerWidth <= 1024) return 500;
+		return 560;
+	};
+
 	const updateSeries = () => {
 		if (!chart || !candleSeries) return;
 
@@ -55,7 +62,7 @@
 				vertLine: { color: 'rgba(99, 164, 255, 0.35)' },
 				horzLine: { color: 'rgba(99, 164, 255, 0.2)' }
 			},
-			height: 520
+			height: getChartHeight()
 		});
 
 		candleSeries = chart.addSeries(CandlestickSeries, {
@@ -76,7 +83,7 @@
 
 		resizeObserver = new ResizeObserver(() => {
 			if (!containerRef || !chart) return;
-			chart.applyOptions({ width: containerRef.clientWidth });
+			chart.applyOptions({ width: containerRef.clientWidth, height: getChartHeight() });
 		});
 
 		resizeObserver.observe(containerRef);
@@ -109,7 +116,7 @@
 
 <style>
 	.chart-panel {
-		padding: 22px;
+		padding: 14px;
 	}
 
 	.chart-panel__header {
@@ -117,7 +124,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin-bottom: 18px;
+		margin-bottom: 10px;
 		flex-wrap: wrap;
 	}
 
@@ -130,10 +137,10 @@
 
 	.chart-panel__legend {
 		display: flex;
-		gap: 14px;
+		gap: 10px;
 		flex-wrap: wrap;
 		color: var(--text-soft);
-		font-size: 0.88rem;
+		font-size: 0.8rem;
 	}
 
 	.chart-panel__legend span {
@@ -158,6 +165,18 @@
 	}
 
 	.chart-panel__surface {
-		min-height: 520px;
+		min-height: 560px;
+		border-radius: 16px;
+		overflow: hidden;
+	}
+
+	@media (max-width: 640px) {
+		.chart-panel {
+			padding: 10px;
+		}
+
+		.chart-panel__surface {
+			min-height: 420px;
+		}
 	}
 </style>

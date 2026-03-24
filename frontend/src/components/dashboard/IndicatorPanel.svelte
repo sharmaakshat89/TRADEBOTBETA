@@ -50,7 +50,7 @@
 
 <style>
 	.indicator-panel {
-		padding: 22px;
+		padding: 14px;
 	}
 
 	.indicator-panel__header {
@@ -58,7 +58,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin-bottom: 18px;
+		margin-bottom: 10px;
 	}
 
 	.indicator-panel__eyebrow {
@@ -70,26 +70,28 @@
 
 	.indicator-panel__grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 12px;
+		grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+		gap: 8px;
 	}
 
 	.indicator-panel__card {
-		padding: 16px;
-		border-radius: 18px;
+		padding: 11px;
+		border-radius: 12px;
 		background: rgba(255, 255, 255, 0.04);
 		border: 1px solid rgba(151, 183, 255, 0.08);
 		display: grid;
-		gap: 8px;
+		gap: 5px;
 	}
 
 	.indicator-panel__card span {
 		color: var(--text-dim);
-		font-size: 0.84rem;
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 
 	.indicator-panel__card strong {
-		font-size: 1.22rem;
+		font-size: 0.96rem;
 	}
 
 	.item-buy {
@@ -106,5 +108,11 @@
 
 	.indicator-panel__empty {
 		color: var(--text-soft);
+	}
+
+	@media (max-width: 640px) {
+		.indicator-panel {
+			padding: 10px;
+		}
 	}
 </style>

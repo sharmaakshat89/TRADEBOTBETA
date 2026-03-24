@@ -77,11 +77,10 @@
 
 <section class="landing page-shell">
 	<div class="landing__hero panel" bind:this={heroRef}>
-		<div class="pill">Svelte 5 frontend for your signal bot</div>
-		<h1 class="section-title">Beautiful live signal terminal for your backend.</h1>
+		<div class="pill">Powered by Svelte</div>
+		<h1 class="section-title">AI Assisted Crypto Live Dashboard</h1>
 		<p class="section-subtitle">
-			Responsive pages, animated interactions, TradingView charts, AI validation, and backtesting,
-			all shaped around your Express, MongoDB, and WebSocket contracts.
+			Like TradingView charts? You’ll love what we built.
 		</p>
 		<div class="landing__actions">
 			<a class="btn btn-primary" href="/register">Start Free</a>

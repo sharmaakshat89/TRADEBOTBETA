@@ -39,7 +39,7 @@
 
 <style>
 	.ai-panel {
-		padding: 22px; /* panel padding */
+		padding: 14px; /* panel padding */
 	}
 
 	.ai-panel__header {
@@ -47,7 +47,7 @@
 		align-items: center; /* center header items */
 		justify-content: space-between; /* split content */
 		gap: 16px; /* gap */
-		margin-bottom: 18px; /* spacing below header */
+		margin-bottom: 10px; /* spacing below header */
 	}
 
 	.ai-panel__eyebrow {
@@ -60,17 +60,18 @@
 	.ai-panel__summary {
 		display: grid; /* summary cards grid */
 		grid-template-columns: repeat(2, minmax(0, 1fr)); /* two summary cards */
-		gap: 12px; /* gap */
-		margin-bottom: 16px; /* spacing */
+		gap: 8px; /* gap */
+		margin-bottom: 10px; /* spacing */
 	}
 
 	.ai-panel__reasoning {
-		padding: 18px; /* reasoning padding */
-		border-radius: 18px; /* reasoning radius */
+		padding: 14px; /* reasoning padding */
+		border-radius: 14px; /* reasoning radius */
 		background: rgba(255, 255, 255, 0.04); /* reasoning bg */
 		border: 1px solid rgba(151, 183, 255, 0.08); /* reasoning border */
 		color: var(--text-soft); /* reasoning text */
 		white-space: pre-wrap; /* preserve backend line breaks */
+		font-size: 0.9rem;
 	}
 
 	.ai-panel__muted {
@@ -78,6 +79,10 @@
 	}
 
 	@media (max-width: 520px) {
+		.ai-panel {
+			padding: 10px;
+		}
+
 		.ai-panel__summary {
 			grid-template-columns: 1fr; /* stack cards on small screens */
 		}

@@ -88,7 +88,7 @@
 
 <style>
 	.signal-card {
-		padding: 22px; /* card padding */
+		padding: 14px; /* card padding */
 	}
 
 	.signal-card__header {
@@ -96,7 +96,7 @@
 		align-items: center; /* align header content */
 		justify-content: space-between; /* justify content */
 		gap: 16px; /* spacing */
-		margin-bottom: 18px; /* spacing after header */
+		margin-bottom: 10px; /* spacing after header */
 	}
 
 	.signal-card__eyebrow {
@@ -107,14 +107,14 @@
 	}
 
 	.signal-card__hero {
-		padding: 24px; /* hero padding */
-		border-radius: 22px; /* hero radius */
+		padding: 16px; /* hero padding */
+		border-radius: 16px; /* hero radius */
 		border: 1px solid rgba(151, 183, 255, 0.14); /* hero border */
 		background:
 			radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 35%),
 			rgba(255, 255, 255, 0.05); /* layered hero bg */
 		display: grid; /* stack hero text */
-		gap: 8px; /* hero gap */
+		gap: 5px; /* hero gap */
 	}
 
 	.signal-card__hero[data-tone='buy'] {
@@ -126,14 +126,14 @@
 	}
 
 	.signal-card__label {
-		font-size: clamp(2rem, 8vw, 3rem); /* big signal text */
+		font-size: clamp(1.5rem, 6vw, 2.2rem); /* big signal text */
 		font-weight: 700; /* emphasize text */
 		letter-spacing: -0.05em; /* tighten signal text */
 	}
 
 	.signal-card__bar {
-		margin: 16px 0 18px; /* bar spacing */
-		height: 10px; /* bar height */
+		margin: 12px 0 12px; /* bar spacing */
+		height: 8px; /* bar height */
 		border-radius: 999px; /* bar shape */
 		background: rgba(255, 255, 255, 0.06); /* track color */
 		overflow: hidden; /* clip fill */
@@ -143,5 +143,11 @@
 		height: 100%; /* fill full height */
 		border-radius: inherit; /* follow bar radius */
 		background: linear-gradient(90deg, var(--brand), var(--buy)); /* fill gradient */
+	}
+
+	@media (max-width: 640px) {
+		.signal-card {
+			padding: 10px;
+		}
 	}
 </style>
