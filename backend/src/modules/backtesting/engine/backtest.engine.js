@@ -6,7 +6,50 @@ const RISK_PER_TRADE_PCT = 0.01;
 const TIME_STOP_CANDLES = 8;
 const TP_PROGRESS_FRACTION = 0.5;
 
-const roundNumber = (value, decimals = 2) => Number(value.toFixed(decimals));
+const DEFAULT_BACKTEST_CONFIG = {
+    scoreThreshold: 0.5,
+    stopLossAtrMultiplier: 1.8,
+    takeProfitAtrMultiplier: 2.5,
+    timeStopCandles: TIME_STOP_CANDLES,
+    triggerFraction: TP_PROGRESS_FRACTION
+};
+
+const safeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const safeDivide = (numerator, denominator, fallback = 0) => {
+    if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+        return fallback;
+    }
+    return numerator / denominator;
+};
+
+const roundNumber = (value, decimals = 2) => {
+    if (!Number.isFinite(value)) return 0;
+    return Number(value.toFixed(decimals));
+};
+
+const normalizeConfig = (config = {}) => ({
+    scoreThreshold: safeNumber(config.scoreThreshold, DEFAULT_BACKTEST_CONFIG.scoreThreshold),
+    stopLossAtrMultiplier: safeNumber(
+        config.stopLossAtrMultiplier,
+        DEFAULT_BACKTEST_CONFIG.stopLossAtrMultiplier
+    ),
+    takeProfitAtrMultiplier: safeNumber(
+        config.takeProfitAtrMultiplier,
+        DEFAULT_BACKTEST_CONFIG.takeProfitAtrMultiplier
+    ),
+    timeStopCandles: Math.max(
+        1,
+        Math.round(safeNumber(config.timeStopCandles, DEFAULT_BACKTEST_CONFIG.timeStopCandles))
+    ),
+    triggerFraction: Math.max(
+        0,
+        safeNumber(config.triggerFraction, DEFAULT_BACKTEST_CONFIG.triggerFraction)
+    )
+});
 
 const calculateMaxDrawdown = (equityCurve) => {
     if (!equityCurve || equityCurve.length < 2) return 0;
@@ -16,35 +59,85 @@ const calculateMaxDrawdown = (equityCurve) => {
 
     for (const point of equityCurve) {
         if (point.balance > peak) peak = point.balance;
-        const drawdown = peak > 0 ? (peak - point.balance) / peak : 0;
+        const drawdown = safeDivide(peak - point.balance, peak, 0);
         if (drawdown > maxDrawdown) maxDrawdown = drawdown;
     }
 
     return roundNumber(maxDrawdown * 100);
 };
 
-const buildEmptySummary = (equityCurve, finalBalance) => ({
-    totalTrades: 0,
-    winningTrades: 0,
-    losingTrades: 0,
-    winRate: 0,
-    netPnL: roundNumber(finalBalance - INITIAL_BALANCE),
-    netPnLPercent: roundNumber(((finalBalance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100),
-    totalProfit: 0,
-    totalLoss: 0,
-    maxDrawdown: calculateMaxDrawdown(equityCurve),
-    finalBalance: roundNumber(finalBalance),
-    riskRewardRatio: null,
-    profitFactor: null
+const buildMetrics = (trades, equityCurve, finalBalance) => {
+    const winningTrades = trades.filter((trade) => trade.pnl > 0);
+    const losingTrades = trades.filter((trade) => trade.pnl < 0);
+    const totalTrades = trades.length;
+    const totalProfit = winningTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+    const totalLoss = losingTrades.reduce((sum, trade) => sum + Math.abs(trade.pnl), 0);
+    const avgWin = safeDivide(totalProfit, winningTrades.length, 0);
+    const avgLoss = safeDivide(totalLoss, losingTrades.length, 0);
+    const winRateRatio = safeDivide(winningTrades.length, totalTrades, 0);
+
+    return {
+        totalTrades,
+        winRate: roundNumber(winRateRatio, 4),
+        avgWin: roundNumber(avgWin),
+        avgLoss: roundNumber(avgLoss),
+        riskRewardRatio: roundNumber(safeDivide(avgWin, avgLoss, 0), 4),
+        profitFactor: roundNumber(safeDivide(totalProfit, totalLoss, 0), 4),
+        expectancy: roundNumber((winRateRatio * avgWin) - ((1 - winRateRatio) * avgLoss), 4),
+        maxDrawdown: calculateMaxDrawdown(equityCurve),
+        totalProfit: roundNumber(totalProfit),
+        totalLoss: roundNumber(totalLoss),
+        winningTrades: winningTrades.length,
+        losingTrades: losingTrades.length,
+        finalBalance: roundNumber(finalBalance),
+        netPnL: roundNumber(finalBalance - INITIAL_BALANCE),
+        netPnLPercent: roundNumber(safeDivide(finalBalance - INITIAL_BALANCE, INITIAL_BALANCE, 0) * 100),
+        winRatePercent: roundNumber(winRateRatio * 100, 2)
+    };
+};
+
+const buildSummary = (metrics) => ({
+    totalTrades: metrics.totalTrades,
+    winningTrades: metrics.winningTrades,
+    losingTrades: metrics.losingTrades,
+    winRate: metrics.winRatePercent,
+    winRateRatio: metrics.winRate,
+    avgWin: metrics.avgWin,
+    avgLoss: metrics.avgLoss,
+    netPnL: metrics.netPnL,
+    netPnLPercent: metrics.netPnLPercent,
+    totalProfit: metrics.totalProfit,
+    totalLoss: metrics.totalLoss,
+    maxDrawdown: metrics.maxDrawdown,
+    finalBalance: metrics.finalBalance,
+    riskRewardRatio: metrics.riskRewardRatio,
+    profitFactor: metrics.profitFactor,
+    expectancy: metrics.expectancy
 });
 
-const compileResults = (trades, equityCurve, finalBalance) => {
+const compileResults = (trades, equityCurve, finalBalance, config) => {
+    const metrics = buildMetrics(trades, equityCurve, finalBalance);
+    const baseResult = {
+        success: true,
+        config,
+        metrics: {
+            totalTrades: metrics.totalTrades,
+            winRate: metrics.winRate,
+            avgWin: metrics.avgWin,
+            avgLoss: metrics.avgLoss,
+            riskRewardRatio: metrics.riskRewardRatio,
+            profitFactor: metrics.profitFactor,
+            expectancy: metrics.expectancy,
+            maxDrawdown: metrics.maxDrawdown
+        },
+        summary: buildSummary(metrics),
+        trades,
+        equityCurve
+    };
+
     if (!trades.length) {
         return {
-            success: true,
-            summary: buildEmptySummary(equityCurve, finalBalance),
-            trades: [],
-            equityCurve,
+            ...baseResult,
             emptyState: {
                 title: 'No trades in this period',
                 message: 'No valid trend-following setups passed regime and funding filters in the selected range.'
@@ -52,31 +145,7 @@ const compileResults = (trades, equityCurve, finalBalance) => {
         };
     }
 
-    const winningTrades = trades.filter((trade) => trade.result === 'WIN');
-    const losingTrades = trades.filter((trade) => trade.result === 'LOSS');
-    const totalProfit = winningTrades.reduce((sum, trade) => sum + trade.pnl, 0);
-    const totalLoss = losingTrades.reduce((sum, trade) => sum + Math.abs(trade.pnl), 0);
-    const netPnL = finalBalance - INITIAL_BALANCE;
-
-    return {
-        success: true,
-        summary: {
-            totalTrades: trades.length,
-            winningTrades: winningTrades.length,
-            losingTrades: losingTrades.length,
-            winRate: roundNumber((winningTrades.length / trades.length) * 100),
-            netPnL: roundNumber(netPnL),
-            netPnLPercent: roundNumber((netPnL / INITIAL_BALANCE) * 100),
-            totalProfit: roundNumber(totalProfit),
-            totalLoss: roundNumber(totalLoss),
-            maxDrawdown: calculateMaxDrawdown(equityCurve),
-            finalBalance: roundNumber(finalBalance),
-            riskRewardRatio: totalLoss > 0 ? roundNumber(totalProfit / totalLoss) : null,
-            profitFactor: totalLoss > 0 ? roundNumber(totalProfit / totalLoss) : null
-        },
-        trades,
-        equityCurve
-    };
+    return baseResult;
 };
 
 const buildTradeRecord = ({
@@ -120,11 +189,32 @@ const buildTradeRecord = ({
 const getHalfTarget = (trade) => {
     const distance = Math.abs(trade.takeProfit - trade.entryPrice);
     return trade.type === 'BUY'
-        ? trade.entryPrice + distance * TP_PROGRESS_FRACTION
-        : trade.entryPrice - distance * TP_PROGRESS_FRACTION;
+        ? trade.entryPrice + distance * trade.triggerFraction
+        : trade.entryPrice - distance * trade.triggerFraction;
 };
 
-export const runBacktest = (symbol, interval, candles) => {
+const deriveSignalForConfig = (signalResult, config) => {
+    if (!signalResult?.success) return 'NO_TRADE';
+    if (signalResult.regime !== 'TREND') return 'NO_TRADE';
+    if (safeNumber(signalResult.context?.phi, 0) <= 0) return 'NO_TRADE';
+    if (signalResult.score > config.scoreThreshold) return 'BUY';
+    if (signalResult.score < -config.scoreThreshold) return 'SELL';
+    return 'NO_TRADE';
+};
+
+const buildRiskForConfig = (entryPrice, direction, atr14, config) => {
+    const safeAtr = safeNumber(atr14, 0);
+    if (safeAtr <= 0) {
+        return { stopLoss: entryPrice, takeProfit: entryPrice };
+    }
+
+    return {
+        stopLoss: entryPrice - direction * (config.stopLossAtrMultiplier * safeAtr),
+        takeProfit: entryPrice + direction * (config.takeProfitAtrMultiplier * safeAtr)
+    };
+};
+
+export const runBacktest = (symbol, interval, candles, config = {}) => {
     if (!candles || candles.length < WARMUP_PERIOD + 1) {
         return {
             success: false,
@@ -132,6 +222,7 @@ export const runBacktest = (symbol, interval, candles) => {
         };
     }
 
+    const normalizedConfig = normalizeConfig(config);
     let balance = INITIAL_BALANCE;
     let openTrade = null;
     const trades = [];
@@ -209,7 +300,7 @@ export const runBacktest = (symbol, interval, candles) => {
 
             if (
                 openTrade &&
-                i - openTrade.entryIndex >= TIME_STOP_CANDLES &&
+                i - openTrade.entryIndex >= openTrade.timeStopCandles &&
                 !openTrade.hitHalfTarget
             ) {
                 const forceWin =
@@ -234,15 +325,26 @@ export const runBacktest = (symbol, interval, candles) => {
 
         if (!openTrade) {
             const signalResult = getUnifiedSignal(symbol, interval, candles.slice(0, i + 1));
+            const derivedSignal = deriveSignalForConfig(signalResult, normalizedConfig);
 
-            if (signalResult.success && (signalResult.signal === 'BUY' || signalResult.signal === 'SELL')) {
+            if (signalResult.success && (derivedSignal === 'BUY' || derivedSignal === 'SELL')) {
+                const direction = derivedSignal === 'SELL' ? -1 : 1;
+                const risk = buildRiskForConfig(
+                    candle.close,
+                    direction,
+                    signalResult.indicators?.atr14,
+                    normalizedConfig
+                );
+
                 openTrade = {
-                    type: signalResult.signal,
+                    type: derivedSignal,
                     entryPrice: candle.close,
-                    stopLoss: signalResult.risk.stopLoss,
-                    takeProfit: signalResult.risk.takeProfit,
+                    stopLoss: risk.stopLoss,
+                    takeProfit: risk.takeProfit,
                     entryIndex: i,
-                    hitHalfTarget: false
+                    hitHalfTarget: false,
+                    timeStopCandles: normalizedConfig.timeStopCandles,
+                    triggerFraction: normalizedConfig.triggerFraction
                 };
             }
         }
@@ -268,5 +370,5 @@ export const runBacktest = (symbol, interval, candles) => {
         equityCurve.push({ index: candles.length - 1, balance: roundNumber(balance) });
     }
 
-    return compileResults(trades, equityCurve, balance);
+    return compileResults(trades, equityCurve, balance, normalizedConfig);
 };

@@ -1,35 +1,71 @@
+import fs from 'fs/promises';
+import path from 'path';
 import NodeCache from 'node-cache';
 import {
     ALLOWED_INTERVALS,
     ALLOWED_SYMBOLS,
-    BACKTEST_LOOKBACKS
+    getEstimatedCandleCount,
+    getFeasibleBacktestLookbacks
 } from '../../market/market.constants.js';
 import { fetchMarketData } from '../../market/services/market.service.js';
 import { runBacktest } from '../engine/backtest.engine.js';
 
 const backtestCache = new NodeCache({ stdTTL: 3600 });
 const MIN_CANDLES_REQUIRED = 151;
+const DEFAULT_MAX_CONFIGS = 25;
+const RESULTS_FILE = path.resolve(process.cwd(), 'backtest_results.json');
 
-const LOOKBACK_MONTHS = {
-    '3M': 3,
-    '6M': 6,
-    '12M': 12
+const safeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const HOURS_PER_INTERVAL = {
-    '1h': 1,
-    '4h': 4,
-    '1day': 24
+const sanitizeConfig = (config = {}) => ({
+    scoreThreshold: safeNumber(config.scoreThreshold, 0.5),
+    stopLossAtrMultiplier: safeNumber(config.stopLossAtrMultiplier, 1.8),
+    takeProfitAtrMultiplier: safeNumber(config.takeProfitAtrMultiplier, 2.5),
+    timeStopCandles: Math.max(1, Math.round(safeNumber(config.timeStopCandles, 8))),
+    triggerFraction: Math.max(0, safeNumber(config.triggerFraction, 0.5))
+});
+
+const sanitizeRunForExport = (run) => ({
+    config: run.config,
+    metrics: run.metrics
+});
+
+const writeResultsFile = async ({ symbol, interval, lookback, runs }) => {
+    const payload = {
+        symbol,
+        interval,
+        lookback,
+        generatedAt: new Date().toISOString(),
+        runs: runs.map(sanitizeRunForExport)
+    };
+
+    await fs.writeFile(RESULTS_FILE, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+    return RESULTS_FILE;
 };
 
 const getOutputSizeForLookback = (interval, lookback) => {
-    const months = LOOKBACK_MONTHS[lookback] ?? 6;
-    const hoursPerBar = HOURS_PER_INTERVAL[interval] ?? 24;
-    const estimatedCandles = Math.ceil((months * 30 * 24) / hoursPerBar);
+    const estimatedCandles = getEstimatedCandleCount(interval, lookback);
     return Math.max(estimatedCandles + 50, MIN_CANDLES_REQUIRED);
 };
 
-export const runBacktestService = async (symbol, interval, lookback = '6M') => {
+const buildRunList = (options = {}) => {
+    const defaultConfig = sanitizeConfig(options.config);
+    const requestedConfigs = Array.isArray(options.configurations)
+        ? options.configurations.map(sanitizeConfig)
+        : [];
+
+    if (!options.runBatchBacktest || !requestedConfigs.length) {
+        return [defaultConfig];
+    }
+
+    const maxConfigs = Math.max(1, Math.min(DEFAULT_MAX_CONFIGS, Math.round(safeNumber(options.maxConfigs, DEFAULT_MAX_CONFIGS))));
+    return requestedConfigs.slice(0, maxConfigs);
+};
+
+export const runBacktestService = async (symbol, interval, lookback = '6M', options = {}) => {
     try {
         if (!ALLOWED_SYMBOLS.includes(symbol)) {
             const error = new Error(`Invalid symbol: ${symbol}. Allowed: ${ALLOWED_SYMBOLS.join(', ')}`);
@@ -43,14 +79,16 @@ export const runBacktestService = async (symbol, interval, lookback = '6M') => {
             throw error;
         }
 
-        if (!BACKTEST_LOOKBACKS.includes(lookback)) {
-            const error = new Error(`Invalid lookback: ${lookback}. Allowed: ${BACKTEST_LOOKBACKS.join(', ')}`);
+        const feasibleLookbacks = getFeasibleBacktestLookbacks(interval);
+        if (!feasibleLookbacks.includes(lookback)) {
+            const error = new Error(`Invalid lookback: ${lookback}. Allowed: ${feasibleLookbacks.join(', ')}`);
             error.statusCode = 400;
-            error.allowedLookbacks = BACKTEST_LOOKBACKS;
+            error.allowedLookbacks = feasibleLookbacks;
             throw error;
         }
 
-        const cacheKey = `backtest_${symbol}_${interval}_${lookback}`;
+        const runConfigs = buildRunList(options);
+        const cacheKey = `backtest_${symbol}_${interval}_${lookback}_${JSON.stringify(runConfigs)}`;
         const cached = backtestCache.get(cacheKey);
         if (cached) {
             console.log(`[BacktestService] Cache HIT - ${cacheKey}`);
@@ -74,9 +112,12 @@ export const runBacktestService = async (symbol, interval, lookback = '6M') => {
             throw error;
         }
 
-        const backtestResult = runBacktest(symbol, interval, candles);
+        const runs = runConfigs.map((config) => runBacktest(symbol, interval, candles, config));
+        const primaryRun = runs[0];
+        const exportedTo = await writeResultsFile({ symbol, interval, lookback, runs });
+
         const enrichedResult = {
-            ...backtestResult,
+            ...primaryRun,
             symbol,
             interval,
             lookback,
@@ -84,7 +125,17 @@ export const runBacktestService = async (symbol, interval, lookback = '6M') => {
             candlesAnalyzed: candles.length,
             dataFrom: new Date(candles[0].time * 1000).toISOString(),
             dataTo: new Date(candles[candles.length - 1].time * 1000).toISOString(),
-            generatedAt: new Date().toISOString()
+            generatedAt: new Date().toISOString(),
+            parameterRuns: runs.map(sanitizeRunForExport),
+            batch: {
+                runBatchBacktest: Boolean(options.runBatchBacktest),
+                totalRuns: runs.length,
+                maxConfigs: options.maxConfigs ?? null
+            },
+            export: {
+                format: 'json',
+                file: exportedTo
+            }
         };
 
         backtestCache.set(cacheKey, enrichedResult);

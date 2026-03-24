@@ -14,6 +14,7 @@
 		allowedIntervals as defaultIntervals,
 		allowedSymbols as defaultSymbols,
 		backtestLookbacks as defaultLookbacks,
+		getBacktestLookbacksForInterval,
 		symbolGroups
 	} from '$lib/config/markets';
 
@@ -24,6 +25,15 @@
 	let allowedSymbols = $state(defaultSymbols);
 	let allowedIntervals = $state(defaultIntervals);
 	let allowedLookbacks = $state(defaultLookbacks);
+
+	const syncLookbacksForInterval = (interval) => {
+		const nextLookbacks = getBacktestLookbacksForInterval(interval);
+		allowedLookbacks = nextLookbacks;
+
+		if (!nextLookbacks.includes(get(marketStore).backtestLookback)) {
+			marketStore.setBacktestLookback(nextLookbacks[0] ?? '6M');
+		}
+	};
 
 	const runBacktest = async (event) => {
 		event.preventDefault();
@@ -81,6 +91,8 @@
 				}
 			);
 		}
+
+		syncLookbacksForInterval(get(marketStore).interval);
 	});
 </script>
 
@@ -100,7 +112,11 @@
 		allowedLookbacks={allowedLookbacks}
 		onSubmit={runBacktest}
 		onSymbolChange={(event) => marketStore.setSelection({ symbol: event.currentTarget.value })}
-		onIntervalChange={(event) => marketStore.setSelection({ interval: event.currentTarget.value })}
+		onIntervalChange={(event) => {
+			const nextInterval = event.currentTarget.value;
+			marketStore.setSelection({ interval: nextInterval });
+			syncLookbacksForInterval(nextInterval);
+		}}
 		onLookbackChange={(event) => marketStore.setBacktestLookback(event.currentTarget.value)}
 	/>
 

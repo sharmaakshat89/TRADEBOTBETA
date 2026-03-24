@@ -7,7 +7,7 @@
 		allowedSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT'],
 		symbolGroups = [],
 		allowedIntervals = ['1h', '4h', '1day'],
-		allowedLookbacks = ['3M', '6M', '12M'],
+		allowedLookbacks = ['6M', '12M', '1Y', '2Y'],
 		onSubmit = () => {},
 		onSymbolChange = () => {},
 		onIntervalChange = () => {},

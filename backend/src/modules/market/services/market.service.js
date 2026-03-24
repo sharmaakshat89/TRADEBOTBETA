@@ -1,11 +1,17 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
-import { getMarketSymbolConfig, getProviderInterval, validateSymbolAndInterval } from '../market.constants.js';
+import {
+    getIntervalMs,
+    getMarketSymbolConfig,
+    getProviderInterval,
+    validateSymbolAndInterval
+} from '../market.constants.js';
 
 const signalCache = new NodeCache({ stdTTL: 60 });
 const BINANCE_FUTURES_BASE_URL = 'https://fapi.binance.com';
 const KLINE_BATCH_LIMIT = 1500;
 const FUNDING_BATCH_LIMIT = 1000;
+const REQUEST_PAUSE_MS = 80;
 
 const safeNumber = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -16,6 +22,8 @@ const roundNumber = (value, decimals = 8) => {
     if (!Number.isFinite(value)) return null;
     return Number(value.toFixed(decimals));
 };
+
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const normalizeCandle = (kline, fundingRate = 0) => ({
     time: Math.floor(kline[0] / 1000),
@@ -76,17 +84,19 @@ const fetchFundingRates = async (futuresSymbol, startTime, endTime) => {
 
         if (batch.length < FUNDING_BATCH_LIMIT) break;
         cursor = safeNumber(batch.at(-1)?.fundingTime) + 1;
+        await pause(REQUEST_PAUSE_MS);
     }
 
     return fundingRates;
 };
 
-const fetchKlineBatch = async (futuresSymbol, interval, limit, endTime) => {
+const fetchKlineBatch = async (futuresSymbol, interval, limit, startTime, endTime) => {
     const response = await axios.get(`${BINANCE_FUTURES_BASE_URL}/fapi/v1/klines`, {
         params: {
             symbol: futuresSymbol,
             interval: getProviderInterval(interval),
             limit,
+            ...(startTime ? { startTime } : {}),
             ...(endTime ? { endTime } : {})
         }
     });
@@ -102,11 +112,20 @@ const fetchAllKlines = async (futuresSymbol, interval, outputsize) => {
     const target = Math.max(1, outputsize);
     const batches = [];
     let remaining = target;
-    let cursorEndTime;
+    let cursorEndTime = Date.now();
+    const intervalMs = getIntervalMs(interval);
 
     while (remaining > 0) {
         const limit = Math.min(KLINE_BATCH_LIMIT, remaining);
-        const batch = await fetchKlineBatch(futuresSymbol, interval, limit, cursorEndTime);
+        const batchSpanMs = intervalMs * limit;
+        const batchStartTime = Math.max(0, cursorEndTime - batchSpanMs + 1);
+        const batch = await fetchKlineBatch(
+            futuresSymbol,
+            interval,
+            limit,
+            batchStartTime,
+            cursorEndTime
+        );
 
         if (!batch.length) break;
 
@@ -115,6 +134,9 @@ const fetchAllKlines = async (futuresSymbol, interval, outputsize) => {
 
         if (batch.length < limit) break;
         cursorEndTime = safeNumber(batch[0][0]) - 1;
+        if (remaining > 0) {
+            await pause(REQUEST_PAUSE_MS);
+        }
     }
 
     const deduped = [];
@@ -127,7 +149,9 @@ const fetchAllKlines = async (futuresSymbol, interval, outputsize) => {
         }
     }
 
-    return deduped.slice(-target);
+    return deduped
+        .sort((left, right) => left[0] - right[0])
+        .slice(-target);
 };
 
 export const fetchMarketData = async (symbol = 'BTC/USDT', interval = '1h', outputsize = 150) => {
