@@ -88,15 +88,15 @@
 
 <style>
 	.signal-card {
-		padding: 14px; /* card padding */
+		padding: 12px; /* card padding */
 	}
 
 	.signal-card__header {
 		display: flex; /* split header */
 		align-items: center; /* align header content */
 		justify-content: space-between; /* justify content */
-		gap: 16px; /* spacing */
-		margin-bottom: 10px; /* spacing after header */
+		gap: 10px; /* spacing */
+		margin-bottom: 8px; /* spacing after header */
 	}
 
 	.signal-card__eyebrow {
@@ -107,8 +107,8 @@
 	}
 
 	.signal-card__hero {
-		padding: 16px; /* hero padding */
-		border-radius: 16px; /* hero radius */
+		padding: 12px; /* hero padding */
+		border-radius: 14px; /* hero radius */
 		border: 1px solid rgba(151, 183, 255, 0.14); /* hero border */
 		background:
 			radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 35%),
@@ -126,14 +126,14 @@
 	}
 
 	.signal-card__label {
-		font-size: clamp(1.5rem, 6vw, 2.2rem); /* big signal text */
+		font-size: clamp(1.25rem, 4vw, 1.85rem); /* big signal text */
 		font-weight: 700; /* emphasize text */
 		letter-spacing: -0.05em; /* tighten signal text */
 	}
 
 	.signal-card__bar {
-		margin: 12px 0 12px; /* bar spacing */
-		height: 8px; /* bar height */
+		margin: 10px 0 10px; /* bar spacing */
+		height: 6px; /* bar height */
 		border-radius: 999px; /* bar shape */
 		background: rgba(255, 255, 255, 0.06); /* track color */
 		overflow: hidden; /* clip fill */
@@ -147,7 +147,7 @@
 
 	@media (max-width: 640px) {
 		.signal-card {
-			padding: 10px;
+			padding: 9px;
 		}
 	}
 </style>

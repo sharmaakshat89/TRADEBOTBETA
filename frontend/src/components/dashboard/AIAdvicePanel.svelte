@@ -39,15 +39,15 @@
 
 <style>
 	.ai-panel {
-		padding: 14px; /* panel padding */
+		padding: 12px; /* panel padding */
 	}
 
 	.ai-panel__header {
 		display: flex; /* header row */
 		align-items: center; /* center header items */
 		justify-content: space-between; /* split content */
-		gap: 16px; /* gap */
-		margin-bottom: 10px; /* spacing below header */
+		gap: 10px; /* gap */
+		margin-bottom: 8px; /* spacing below header */
 	}
 
 	.ai-panel__eyebrow {
@@ -65,13 +65,14 @@
 	}
 
 	.ai-panel__reasoning {
-		padding: 14px; /* reasoning padding */
-		border-radius: 14px; /* reasoning radius */
+		padding: 12px; /* reasoning padding */
+		border-radius: 12px; /* reasoning radius */
 		background: rgba(255, 255, 255, 0.04); /* reasoning bg */
 		border: 1px solid rgba(151, 183, 255, 0.08); /* reasoning border */
 		color: var(--text-soft); /* reasoning text */
 		white-space: pre-wrap; /* preserve backend line breaks */
-		font-size: 0.9rem;
+		font-size: 0.84rem;
+		line-height: 1.45;
 	}
 
 	.ai-panel__muted {
@@ -80,7 +81,7 @@
 
 	@media (max-width: 520px) {
 		.ai-panel {
-			padding: 10px;
+			padding: 9px;
 		}
 
 		.ai-panel__summary {

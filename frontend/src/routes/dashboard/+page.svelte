@@ -164,18 +164,18 @@
 
 <style>
 	.dashboard {
-		width: min(100% - 12px, 1400px);
-		padding: 14px 0 40px;
+		width: min(100% - 10px, 1380px);
+		padding: 10px 0 28px;
 		display: grid;
-		gap: 12px;
+		gap: 10px;
 	}
 
 	.dashboard__toolbar {
-		padding: 12px;
+		padding: 10px;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
+		gap: 10px;
 		flex-wrap: wrap;
 	}
 
@@ -195,15 +195,15 @@
 
 	.dashboard__grid {
 		display: grid;
-		grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.82fr);
-		gap: 12px;
+		grid-template-columns: minmax(0, 2.65fr) minmax(250px, 0.72fr);
+		gap: 10px;
 		align-items: start;
 	}
 
 	.dashboard__main,
 	.dashboard__side {
 		display: grid;
-		gap: 12px;
+		gap: 10px;
 	}
 
 	.dashboard__loading {
@@ -223,7 +223,7 @@
 	@media (max-width: 760px) {
 		.dashboard {
 			width: min(100% - 8px, 1400px);
-			padding-top: 8px;
+			padding-top: 6px;
 		}
 
 		.dashboard__toolbar-grid {
@@ -248,7 +248,7 @@
 
 		.dashboard__main,
 		.dashboard__side {
-			gap: 10px;
+			gap: 8px;
 		}
 	}
 

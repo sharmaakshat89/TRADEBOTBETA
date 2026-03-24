@@ -1,30 +1,30 @@
 <script>
-	import { onMount } from 'svelte'; // lifecycle for animations
-	import { goto } from '$app/navigation'; // navigation helper
-	import { get } from 'svelte/store'; // read auth snapshot
-	import { gsap } from 'gsap'; // page animations
-	import { authStore } from '$lib/stores/authStore'; // auth status
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { get } from 'svelte/store';
+	import { gsap } from 'gsap';
+	import { authStore } from '$lib/stores/authStore';
 
-	let heroRef = $state(null); // hero section ref
-	let cardsRef = $state(null); // features wrapper ref
+	let heroRef = $state(null);
+	let cardsRef = $state(null);
 
 	onMount(() => {
-		const auth = get(authStore); // read auth on landing
+		const auth = get(authStore);
 		if (auth.isAuthenticated) {
-			goto('/dashboard'); // authenticated users jump to app
-			return; // stop landing animation
+			goto('/dashboard');
+			return;
 		}
 
 		if (heroRef) {
 			gsap.fromTo(
 				heroRef.children,
-				{ y: 38, opacity: 0 }, // initial hidden state
+				{ y: 24, opacity: 0 },
 				{
-					y: 0, // final position
-					opacity: 1, // visible state
-					duration: 0.8, // smooth reveal
-					stagger: 0.08, // sequence animation
-					ease: 'power3.out' // premium ease
+					y: 0,
+					opacity: 1,
+					duration: 0.7,
+					stagger: 0.07,
+					ease: 'power3.out'
 				}
 			);
 		}
@@ -32,41 +32,37 @@
 		if (cardsRef) {
 			gsap.fromTo(
 				cardsRef.children,
-				{ y: 28, opacity: 0 }, // card start state
+				{ y: 20, opacity: 0 },
 				{
-					y: 0, // card final position
-					opacity: 1, // card final opacity
-					duration: 0.7, // card duration
-					stagger: 0.1, // card stagger
-					delay: 0.25, // wait after hero
-					ease: 'power3.out' // ease
+					y: 0,
+					opacity: 1,
+					duration: 0.6,
+					stagger: 0.08,
+					delay: 0.18,
+					ease: 'power3.out'
 				}
 			);
 		}
 	});
 
 	const metrics = [
-		{ label: 'Live OHLC feed', value: '1 min' }, // websocket delivery cadence
-		{ label: 'Quant indicators', value: '7+' }, // count of displayed indicators
-		{ label: 'Backtest depth', value: '500 candles' } // fetched backtest size
+		{ label: 'Live feed', value: 'Binance Futures' },
+		{ label: 'Execution view', value: 'Spot-ready' },
+		{ label: 'Backtests', value: '6M to 5Y' }
 	];
 
 	const features = [
 		{
-			title: 'Live market desk',
-			body: 'Realtime INR pair candles delivered through a single WebSocket manager with auto reconnect and subscription switching.'
+			title: 'Chart-first workflow',
+			body: 'Realtime candles, compact signal context, and backtests that stay aligned with the same backend payload.'
 		},
 		{
-			title: 'Quant signal engine',
-			body: 'Signal cards reflect the backend score, risk levels, and indicator state exactly as the API emits them.'
+			title: 'Quant plus AI',
+			body: 'Structured signal logic stays deterministic while the AI layer is free to validate and explain the setup.'
 		},
 		{
-			title: 'AI validation layer',
-			body: 'The AI panel renders the quant signal and the model response side by side without contract mismatch.'
-		},
-		{
-			title: 'Backtesting workspace',
-			body: 'Equity curves and performance metrics map directly to the summary, trades, and equityCurve payload from the backend.'
+			title: 'Crypto-only focus',
+			body: 'Built around Binance market structure, funding-aware context, and multi-range backtesting without mixed asset logic.'
 		}
 	];
 </script>
@@ -77,10 +73,10 @@
 
 <section class="landing page-shell">
 	<div class="landing__hero panel" bind:this={heroRef}>
-		<div class="pill">Powered by Svelte</div>
-		<h1 class="section-title">AI Assisted Crypto Live Dashboard</h1>
+		<div class="pill">Crypto signal workspace</div>
+		<h1 class="section-title">LIVE CHARTS FOR YOU .</h1>
 		<p class="section-subtitle">
-			Like TradingView charts? You’ll love what we built.
+			Yukti keeps the trading surface focused: market structure first, signal context second, and backtesting close at hand.
 		</p>
 		<div class="landing__actions">
 			<a class="btn btn-primary" href="/register">Start Free</a>
@@ -108,57 +104,72 @@
 
 <style>
 	.landing {
-		padding: 38px 0 48px; /* landing spacing */
-		display: grid; /* stack hero and features */
-		gap: 22px; /* section gap */
+		width: min(100% - 18px, 1180px);
+		padding: 16px 0 28px;
+		display: grid;
+		gap: 12px;
 	}
 
 	.landing__hero {
-		padding: clamp(28px, 6vw, 56px); /* hero padding */
-		min-height: min(74vh, 760px); /* hero height */
-		display: grid; /* stack hero content */
-		align-content: center; /* center content vertically */
-		gap: 20px; /* hero item spacing */
+		padding: clamp(20px, 4vw, 34px);
+		min-height: min(52vh, 480px);
+		display: grid;
+		align-content: center;
+		gap: 14px;
 		background:
-			radial-gradient(circle at top right, rgba(44, 230, 166, 0.18), transparent 22%),
-			radial-gradient(circle at bottom left, rgba(99, 164, 255, 0.18), transparent 28%),
-			var(--bg-elevated); /* expressive hero bg */
+			radial-gradient(circle at top right, rgba(217, 119, 87, 0.14), transparent 22%),
+			radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.05), transparent 28%),
+			var(--bg-elevated);
 	}
 
 	.landing__actions {
-		display: flex; /* action row */
-		gap: 14px; /* button spacing */
-		flex-wrap: wrap; /* allow wrapping */
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
 	}
 
 	.landing__metrics {
-		display: grid; /* metrics grid */
-		grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* responsive metrics */
-		gap: 14px; /* metrics gap */
-		margin-top: 6px; /* spacing above metrics */
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 10px;
+		margin-top: 2px;
 	}
 
 	.landing__feature-grid {
-		display: grid; /* feature grid */
-		grid-template-columns: repeat(2, minmax(0, 1fr)); /* two columns */
-		gap: 20px; /* feature gap */
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 10px;
 	}
 
 	.landing__feature {
-		padding: 24px; /* feature card padding */
-		min-height: 220px; /* equal-ish card heights */
-		display: grid; /* stack feature content */
-		align-content: start; /* align content to top */
-		gap: 14px; /* feature spacing */
+		padding: 16px;
+		min-height: 150px;
+		display: grid;
+		align-content: start;
+		gap: 10px;
+	}
+
+	.landing__feature h2 {
+		font-size: 1rem;
 	}
 
 	.landing__feature p {
-		color: var(--text-soft); /* feature text */
+		color: var(--text-soft);
+		font-size: 0.92rem;
 	}
 
 	@media (max-width: 880px) {
+		.landing {
+			width: min(100% - 12px, 1180px);
+		}
+
+		.landing__metrics,
 		.landing__feature-grid {
-			grid-template-columns: 1fr; /* stack features on tablet */
+			grid-template-columns: 1fr;
+		}
+
+		.landing__hero {
+			min-height: auto;
 		}
 	}
 </style>

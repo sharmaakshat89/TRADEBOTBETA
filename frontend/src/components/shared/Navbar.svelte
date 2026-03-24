@@ -99,6 +99,12 @@
 		</button>
 	</div>
 
+	<div class="navbar__quicklinks">
+		<a class:active={isActive('/')} href="/" onclick={closeMenu}>Home</a>
+		<a class:active={isActive('/dashboard')} href="/dashboard" onclick={closeMenu}>Dashboard</a>
+		<a class:active={isActive('/backtest')} href="/backtest" onclick={closeMenu}>Backtest</a>
+	</div>
+
 	<div class:open={menuOpen} class="navbar__mobile">
 		<div class="navbar__links navbar__links--mobile">
 			<a class:active={isActive('/')} href="/" onclick={closeMenu}>Home</a>
@@ -262,6 +268,10 @@
 		display: none;
 	}
 
+	.navbar__quicklinks {
+		display: none;
+	}
+
 	@media (max-width: 880px) {
 		.navbar {
 			width: min(100% - 12px, var(--page-width));
@@ -286,6 +296,29 @@
 				max-height 0.25s ease,
 				opacity 0.25s ease,
 				padding-top 0.25s ease;
+		}
+
+		.navbar__quicklinks {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 6px;
+			padding-top: 8px;
+		}
+
+		.navbar__quicklinks a {
+			padding: 8px 10px;
+			border-radius: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.05);
+			background: rgba(255, 255, 255, 0.025);
+			color: var(--text-soft);
+			font-size: 0.8rem;
+			text-align: center;
+		}
+
+		.navbar__quicklinks a.active {
+			color: var(--text);
+			border-color: rgba(217, 119, 87, 0.24);
+			background: rgba(217, 119, 87, 0.08);
 		}
 
 		.navbar__mobile.open {
@@ -316,6 +349,12 @@
 
 		.navbar__user {
 			max-width: none;
+		}
+	}
+
+	@media (max-width: 460px) {
+		.navbar__quicklinks {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
