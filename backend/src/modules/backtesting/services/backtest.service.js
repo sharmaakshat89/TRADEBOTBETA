@@ -2,15 +2,13 @@ import NodeCache from 'node-cache';
 import {
     ALLOWED_INTERVALS,
     ALLOWED_SYMBOLS,
-    BACKTEST_LOOKBACKS,
-    BACKTEST_MODES,
-    getMarketSymbolConfig
+    BACKTEST_LOOKBACKS
 } from '../../market/market.constants.js';
 import { fetchMarketData } from '../../market/services/market.service.js';
 import { runBacktest } from '../engine/backtest.engine.js';
 
 const backtestCache = new NodeCache({ stdTTL: 3600 });
-const MIN_CANDLES_REQUIRED = 101;
+const MIN_CANDLES_REQUIRED = 151;
 
 const LOOKBACK_MONTHS = {
     '3M': 3,
@@ -24,18 +22,14 @@ const HOURS_PER_INTERVAL = {
     '1day': 24
 };
 
-const getOutputSizeForLookback = (symbol, interval, lookback) => {
+const getOutputSizeForLookback = (interval, lookback) => {
     const months = LOOKBACK_MONTHS[lookback] ?? 6;
     const hoursPerBar = HOURS_PER_INTERVAL[interval] ?? 24;
     const estimatedCandles = Math.ceil((months * 30 * 24) / hoursPerBar);
-    const requestedSize = Math.max(estimatedCandles + 20, MIN_CANDLES_REQUIRED);
-    const provider = getMarketSymbolConfig(symbol)?.provider;
-    const providerMax = provider === 'binance' ? 1000 : 5000;
-
-    return Math.min(requestedSize, providerMax);
+    return Math.max(estimatedCandles + 50, MIN_CANDLES_REQUIRED);
 };
 
-export const runBacktestService = async (symbol, interval, lookback = '6M', mode = 'BALANCED') => {
+export const runBacktestService = async (symbol, interval, lookback = '6M') => {
     try {
         if (!ALLOWED_SYMBOLS.includes(symbol)) {
             const error = new Error(`Invalid symbol: ${symbol}. Allowed: ${ALLOWED_SYMBOLS.join(', ')}`);
@@ -56,26 +50,15 @@ export const runBacktestService = async (symbol, interval, lookback = '6M', mode
             throw error;
         }
 
-        if (!BACKTEST_MODES.includes(mode)) {
-            const error = new Error(`Invalid mode: ${mode}. Allowed: ${BACKTEST_MODES.join(', ')}`);
-            error.statusCode = 400;
-            error.allowedModes = BACKTEST_MODES;
-            throw error;
-        }
-
-        const cacheKey = `backtest_${symbol}_${interval}_${lookback}_${mode}`;
+        const cacheKey = `backtest_${symbol}_${interval}_${lookback}`;
         const cached = backtestCache.get(cacheKey);
-
         if (cached) {
             console.log(`[BacktestService] Cache HIT - ${cacheKey}`);
             return { success: true, data: cached, source: 'cache' };
         }
 
-        console.log(`[BacktestService] Cache MISS - fetching: ${cacheKey}`);
-
-        const outputsize = getOutputSizeForLookback(symbol, interval, lookback);
+        const outputsize = getOutputSizeForLookback(interval, lookback);
         const marketResult = await fetchMarketData(symbol, interval, outputsize);
-
         if (!marketResult.success || !marketResult.data) {
             const error = new Error('Failed to fetch market data for backtesting');
             error.statusCode = 502;
@@ -83,8 +66,6 @@ export const runBacktestService = async (symbol, interval, lookback = '6M', mode
         }
 
         const candles = marketResult.data;
-        console.log(`[BacktestService] ${candles.length} candles fetched for ${symbol} ${interval}`);
-
         if (candles.length < MIN_CANDLES_REQUIRED) {
             const error = new Error(
                 `Insufficient data: got ${candles.length}, need ${MIN_CANDLES_REQUIRED}+`
@@ -93,14 +74,12 @@ export const runBacktestService = async (symbol, interval, lookback = '6M', mode
             throw error;
         }
 
-        const backtestResult = runBacktest(symbol, interval, candles, { mode });
-
+        const backtestResult = runBacktest(symbol, interval, candles);
         const enrichedResult = {
             ...backtestResult,
             symbol,
             interval,
             lookback,
-            mode,
             requestedCandles: outputsize,
             candlesAnalyzed: candles.length,
             dataFrom: new Date(candles[0].time * 1000).toISOString(),
@@ -109,8 +88,6 @@ export const runBacktestService = async (symbol, interval, lookback = '6M', mode
         };
 
         backtestCache.set(cacheKey, enrichedResult);
-        console.log(`[BacktestService] Cached: ${cacheKey}`);
-
         return { success: true, data: enrichedResult, source: 'api' };
     } catch (error) {
         console.error(`[BacktestService] ERROR: ${error.message}`, {
@@ -126,5 +103,4 @@ export const runBacktestService = async (symbol, interval, lookback = '6M', mode
 export const invalidateBacktestCache = (symbol, interval) => {
     const key = `backtest_${symbol}_${interval}`;
     backtestCache.del(key);
-    console.log(`[BacktestService] Cache invalidated: ${key}`);
 };

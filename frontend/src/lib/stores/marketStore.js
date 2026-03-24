@@ -1,69 +1,63 @@
-import { writable } from 'svelte/store'; // reactive market state
+import { writable } from 'svelte/store';
 
 const initialState = {
-	symbol: 'BTC/USDT', // default to Binance-backed crypto for deeper history
-	interval: '1h', // backend default interval
-	backtestLookback: '6M', // default backtest range
-	backtestMode: 'BALANCED', // default backtest strictness
-	candles: [], // live candle feed
-	signal: null, // latest quant signal payload
-	aiAnalysis: null, // latest ai payload
-	backtest: null, // latest backtest payload
-	wsStatus: 'idle', // socket lifecycle state
-	wsError: '', // socket error message
-	lastUpdatedAt: null // last market refresh time
+	symbol: 'BTC/USDT',
+	interval: '1h',
+	backtestLookback: '6M',
+	candles: [],
+	signal: null,
+	aiAnalysis: null,
+	backtest: null,
+	wsStatus: 'idle',
+	wsError: '',
+	lastUpdatedAt: null
 };
 
 const createMarketStore = () => {
-	const { subscribe, update, set } = writable(initialState); // create writable store
+	const { subscribe, update, set } = writable(initialState);
 
 	return {
-		subscribe, // expose subscription
-		reset: () => set(initialState), // reset all market data
+		subscribe,
+		reset: () => set(initialState),
 		setSelection: ({ symbol, interval }) =>
 			update((state) => ({
-				...state, // retain other fields
-				symbol: symbol ?? state.symbol, // patch symbol if present
-				interval: interval ?? state.interval // patch interval if present
+				...state,
+				symbol: symbol ?? state.symbol,
+				interval: interval ?? state.interval
 			})),
 		setBacktestLookback: (lookback) =>
 			update((state) => ({
 				...state,
 				backtestLookback: lookback ?? state.backtestLookback
 			})),
-		setBacktestMode: (mode) =>
-			update((state) => ({
-				...state,
-				backtestMode: mode ?? state.backtestMode
-			})),
 		setCandles: (candles) =>
 			update((state) => ({
-				...state, // retain prior state
-				candles: Array.isArray(candles) ? candles : [], // sanitize candles
-				lastUpdatedAt: Date.now() // timestamp refresh
+				...state,
+				candles: Array.isArray(candles) ? candles : [],
+				lastUpdatedAt: Date.now()
 			})),
 		setSignal: (signal) =>
 			update((state) => ({
-				...state, // keep other market fields
-				signal: signal ?? null // store latest signal
+				...state,
+				signal: signal ?? null
 			})),
 		setAIAnalysis: (aiAnalysis) =>
 			update((state) => ({
-				...state, // retain state
-				aiAnalysis: aiAnalysis ?? null // store ai payload
+				...state,
+				aiAnalysis: aiAnalysis ?? null
 			})),
 		setBacktest: (backtest) =>
 			update((state) => ({
-				...state, // retain state
-				backtest: backtest ?? null // store backtest payload
+				...state,
+				backtest: backtest ?? null
 			})),
 		setWsState: ({ status, error = '' }) =>
 			update((state) => ({
-				...state, // retain existing data
-				wsStatus: status ?? state.wsStatus, // patch ws status
-				wsError: error // set latest socket error
+				...state,
+				wsStatus: status ?? state.wsStatus,
+				wsError: error
 			}))
 	};
 };
 
-export const marketStore = createMarketStore(); // shared market store
+export const marketStore = createMarketStore();

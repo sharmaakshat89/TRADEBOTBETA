@@ -1,7 +1,7 @@
 <script>
-	let { result = null, source = '' } = $props(); // backtest result payload
+	let { result = null, source = '' } = $props();
 
-	const summary = $derived(() => result?.summary ?? null); // summary shortcut
+	const summary = $derived(() => result?.summary ?? null);
 </script>
 
 <section class="panel backtest-result">
@@ -21,7 +21,6 @@
 		<div class="backtest-result__meta">
 			<span class="pill">Range: {result?.lookback ?? '6M'}</span>
 			<span class="pill">Interval: {result?.interval ?? '1h'}</span>
-			<span class="pill">Mode: {result?.mode ?? 'BALANCED'}</span>
 			<span class="pill">Candles: {result?.candlesAnalyzed ?? 0}</span>
 		</div>
 		{#if result?.emptyState}
@@ -61,26 +60,26 @@
 
 <style>
 	.backtest-result {
-		padding: 22px; /* panel padding */
+		padding: 22px;
 	}
 
 	.backtest-result__header {
-		display: flex; /* header row */
-		align-items: center; /* align header content */
-		justify-content: space-between; /* split heading and source */
-		gap: 16px; /* spacing */
-		margin-bottom: 18px; /* spacing below header */
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 18px;
 	}
 
 	.backtest-result__eyebrow {
-		color: var(--text-dim); /* eyebrow color */
-		font-size: 0.8rem; /* eyebrow size */
-		text-transform: uppercase; /* uppercase */
-		letter-spacing: 0.18em; /* tracking */
+		color: var(--text-dim);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.18em;
 	}
 
 	.backtest-result__empty {
-		color: var(--text-soft); /* empty state color */
+		color: var(--text-soft);
 	}
 
 	.backtest-result__meta {

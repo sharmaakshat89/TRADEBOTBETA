@@ -38,11 +38,12 @@ Backend  → Frontend   (data BHEJNA — response) */
             success:true,
             data:{
                 ...signal,
+                symbol: cleanSymbol,
+                interval: cleanInterval,
                 currentPrice: marketData.data.at(-1)?.close ?? null,
                 candles: marketData.data
             }
-        })//we get as resp : { signal: 'BUY', score: 0.82, risk: { stopLoss, takeProfit },
-        //   indicators: { rsi, adx, supertrend, hma, macdHist, bbWidth } }
+        })
 
     }
     catch(err){

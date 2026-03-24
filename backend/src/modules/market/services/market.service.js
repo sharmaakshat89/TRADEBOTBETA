@@ -1,100 +1,174 @@
 import axios from 'axios';
-import NodeCache from 'node-cache'; // In-memory cache for signal stability
-import dotenv from 'dotenv';
-import { getProviderInterval, validateSymbolAndInterval } from '../market.constants.js';
+import NodeCache from 'node-cache';
+import { getMarketSymbolConfig, getProviderInterval, validateSymbolAndInterval } from '../market.constants.js';
 
-dotenv.config();
+const signalCache = new NodeCache({ stdTTL: 60 });
+const BINANCE_FUTURES_BASE_URL = 'https://fapi.binance.com';
+const KLINE_BATCH_LIMIT = 1500;
+const FUNDING_BATCH_LIMIT = 1000;
 
-// Standard TTL 60 seconds i.e 1 minute tak API call nahi hogi same symbol ke liye
-const signalCache = new NodeCache({ stdTTL: 60 }); //reserves space in RAM
+const safeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
 
-/**
- * Fetch normalized candle data for forex and crypto pairs.
- * Forex uses Twelve Data, crypto spot pairs use Binance public klines.
- */
-export const fetchMarketData = async (symbol = 'EUR/USD', interval = '1h', outputsize = 100) => {
+const roundNumber = (value, decimals = 8) => {
+    if (!Number.isFinite(value)) return null;
+    return Number(value.toFixed(decimals));
+};
+
+const normalizeCandle = (kline, fundingRate = 0) => ({
+    time: Math.floor(kline[0] / 1000),
+    openTime: kline[0],
+    closeTime: kline[6],
+    open: safeNumber(kline[1]),
+    high: safeNumber(kline[2]),
+    low: safeNumber(kline[3]),
+    close: safeNumber(kline[4]),
+    volume: safeNumber(kline[5]),
+    takerBuyBaseVolume: safeNumber(kline[9]),
+    fundingRate: roundNumber(fundingRate, 6)
+});
+
+const buildFundingAlignment = (candles, fundingRates) => {
+    const sortedFunding = [...fundingRates].sort((a, b) => a.fundingTime - b.fundingTime);
+    let fundingIndex = 0;
+    let latestFunding = 0;
+
+    return candles.map((kline) => {
+        const closeTime = kline[6];
+
+        while (
+            fundingIndex < sortedFunding.length &&
+            sortedFunding[fundingIndex].fundingTime <= closeTime
+        ) {
+            latestFunding = sortedFunding[fundingIndex].fundingRate;
+            fundingIndex += 1;
+        }
+
+        return normalizeCandle(kline, latestFunding);
+    });
+};
+
+const fetchFundingRates = async (futuresSymbol, startTime, endTime) => {
+    const fundingRates = [];
+    let cursor = startTime;
+
+    while (cursor <= endTime) {
+        const response = await axios.get(`${BINANCE_FUTURES_BASE_URL}/fapi/v1/fundingRate`, {
+            params: {
+                symbol: futuresSymbol,
+                startTime: cursor,
+                endTime,
+                limit: FUNDING_BATCH_LIMIT
+            }
+        });
+
+        const batch = Array.isArray(response.data) ? response.data : [];
+        if (!batch.length) break;
+
+        fundingRates.push(
+            ...batch.map((item) => ({
+                fundingTime: safeNumber(item.fundingTime),
+                fundingRate: safeNumber(item.fundingRate)
+            }))
+        );
+
+        if (batch.length < FUNDING_BATCH_LIMIT) break;
+        cursor = safeNumber(batch.at(-1)?.fundingTime) + 1;
+    }
+
+    return fundingRates;
+};
+
+const fetchKlineBatch = async (futuresSymbol, interval, limit, endTime) => {
+    const response = await axios.get(`${BINANCE_FUTURES_BASE_URL}/fapi/v1/klines`, {
+        params: {
+            symbol: futuresSymbol,
+            interval: getProviderInterval(interval),
+            limit,
+            ...(endTime ? { endTime } : {})
+        }
+    });
+
+    if (!Array.isArray(response.data)) {
+        throw new Error('Invalid data received from Binance Futures');
+    }
+
+    return response.data;
+};
+
+const fetchAllKlines = async (futuresSymbol, interval, outputsize) => {
+    const target = Math.max(1, outputsize);
+    const batches = [];
+    let remaining = target;
+    let cursorEndTime;
+
+    while (remaining > 0) {
+        const limit = Math.min(KLINE_BATCH_LIMIT, remaining);
+        const batch = await fetchKlineBatch(futuresSymbol, interval, limit, cursorEndTime);
+
+        if (!batch.length) break;
+
+        batches.unshift(...batch);
+        remaining -= batch.length;
+
+        if (batch.length < limit) break;
+        cursorEndTime = safeNumber(batch[0][0]) - 1;
+    }
+
+    const deduped = [];
+    const seenOpenTimes = new Set();
+
+    for (const kline of batches) {
+        if (!seenOpenTimes.has(kline[0])) {
+            seenOpenTimes.add(kline[0]);
+            deduped.push(kline);
+        }
+    }
+
+    return deduped.slice(-target);
+};
+
+export const fetchMarketData = async (symbol = 'BTC/USDT', interval = '1h', outputsize = 150) => {
     const { symbol: cleanSymbol, interval: cleanInterval, config } = validateSymbolAndInterval(
         symbol,
         interval
     );
-    const cacheKey = `market_${cleanSymbol}_${cleanInterval}_${outputsize}`; // Unique key for cache lookup
-    const providerLabel = config.provider === 'binance' ? 'Binance' : 'Twelve Data';
+    const cacheKey = `market_${cleanSymbol}_${cleanInterval}_${outputsize}`;
+    const cachedData = signalCache.get(cacheKey);
 
-    // 1. SIGNAL CACHE CHECK (Architecture Rule [1])
-    const cachedData = signalCache.get(cacheKey); // RAM mein check kar rahe hain data hai ya nahi
-    if (cachedData) { // if found
+    if (cachedData) {
         console.log(
-            `[MarketData] CACHE HIT provider=${providerLabel} symbol=${cleanSymbol} interval=${cleanInterval} outputsize=${outputsize}`
+            `[MarketData] CACHE HIT provider=BinanceFutures symbol=${cleanSymbol} interval=${cleanInterval} outputsize=${outputsize}`
         );
-        return { success: true, data: cachedData, source: 'cache' }; // API call bacha li
+        return { success: true, data: cachedData, source: 'cache' };
     }
 
     try {
         console.log(
-            `[MarketData] FETCH provider=${providerLabel} symbol=${cleanSymbol} interval=${cleanInterval} outputsize=${outputsize}`
+            `[MarketData] FETCH provider=BinanceFutures symbol=${cleanSymbol} interval=${cleanInterval} outputsize=${outputsize}`
         );
-        let formattedData = [];
 
-        if (config.provider === 'binance') {
-            const response = await axios.get('https://api.binance.com/api/v3/klines', {
-                params: {
-                    symbol: config.apiSymbol,
-                    interval: getProviderInterval(config.provider, cleanInterval),
-                    limit: outputsize
-                }
-            });
+        const futuresSymbol = getMarketSymbolConfig(cleanSymbol)?.futuresSymbol ?? config?.futuresSymbol;
+        const klines = await fetchAllKlines(futuresSymbol, cleanInterval, outputsize);
 
-            if (!Array.isArray(response.data)) {
-                throw new Error('Invalid data received from Binance');
-            }
-
-            formattedData = response.data.map((candle) => ({
-                time: candle[0] / 1000,
-                open: parseFloat(candle[1]),
-                high: parseFloat(candle[2]),
-                low: parseFloat(candle[3]),
-                close: parseFloat(candle[4]),
-                volume: parseFloat(candle[5] ?? 0)
-            }));
-        } else {
-            const response = await axios.get('https://api.twelvedata.com/time_series', {
-                params: {
-                    symbol: config.apiSymbol,
-                    interval: getProviderInterval(config.provider, cleanInterval),
-                    apikey: process.env.TWELVE_DATA_KEY,
-                    outputsize: outputsize
-                }
-            });
-
-            if (response.data.status === 'error') { // Twelve Data specific error check
-                throw new Error(response.data.message); // Credit exhaustion ya invalid symbol
-            }
-
-            if (!response.data.values || !Array.isArray(response.data.values)) {
-                throw new Error('Invalid data received from API');
-            }
-
-            formattedData = response.data.values
-                .map((candle) => ({
-                    time: new Date(candle.datetime).getTime() / 1000, // String to Unix timestamp for Charts [1]
-                    open: parseFloat(candle.open), // String to Number conversion for Math
-                    high: parseFloat(candle.high), // High price for volatility filters [3]
-                    low: parseFloat(candle.low), // Low price for ATR
-                    close: parseFloat(candle.close), // Most critical for MA50
-                    volume: candle.volume ? parseFloat(candle.volume) : 0 // Forex volume is often zero or ticks
-                }))
-                .reverse(); // Reverse because , to calculate indicators we go from old to new [1]
+        if (!klines.length) {
+            throw new Error(`No Binance Futures candles returned for ${cleanSymbol}`);
         }
 
-        // 5. UPDATE SIGNAL CACHE
-        signalCache.set(cacheKey, formattedData); // Key: symbol_interval, Value: candles
+        const fundingRates = await fetchFundingRates(
+            futuresSymbol,
+            safeNumber(klines[0][0]),
+            safeNumber(klines.at(-1)?.[6])
+        );
+
+        const formattedData = buildFundingAlignment(klines, fundingRates);
+        signalCache.set(cacheKey, formattedData);
 
         return { success: true, data: formattedData, source: 'api' };
-
     } catch (error) {
-        console.error(`error msg: ${error.message}`);
+        console.error(`[MarketData] ERROR: ${error.message}`);
         throw error;
     }
 };
-
-export const fetchForexData = fetchMarketData;

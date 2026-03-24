@@ -1,90 +1,83 @@
 <script>
-	import { onMount } from 'svelte'; // lifecycle for guard and animation
-	import { goto } from '$app/navigation'; // redirect helper
-	import { get } from 'svelte/store'; // read auth snapshot
-	import { gsap } from 'gsap'; // page animation
-	import api from '$lib/api'; // axios client
-	import { authStore } from '$lib/stores/authStore'; // auth state
-	import { marketStore } from '$lib/stores/marketStore'; // shared selection and result store
-	import BacktestForm from '$components/backtesting/BacktestForm.svelte'; // backtest form
-	import BacktestResultCard from '$components/backtesting/BacktestResultCard.svelte'; // result summary
-	import EquityCurve from '$components/backtesting/EquityCurve.svelte'; // curve chart
-	import Loader from '$components/shared/Loader.svelte'; // loading component
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { get } from 'svelte/store';
+	import { gsap } from 'gsap';
+	import api from '$lib/api';
+	import { authStore } from '$lib/stores/authStore';
+	import { marketStore } from '$lib/stores/marketStore';
+	import BacktestForm from '$components/backtesting/BacktestForm.svelte';
+	import BacktestResultCard from '$components/backtesting/BacktestResultCard.svelte';
+	import EquityCurve from '$components/backtesting/EquityCurve.svelte';
+	import Loader from '$components/shared/Loader.svelte';
 	import {
 		allowedIntervals as defaultIntervals,
 		allowedSymbols as defaultSymbols,
 		backtestLookbacks as defaultLookbacks,
-		backtestModes as defaultModes,
 		symbolGroups
-	} from '$lib/config/markets'; // shared market options
+	} from '$lib/config/markets';
 
-	let pageRef = $state(null); // route wrapper ref
-	let loading = $state(false); // request loading state
-	let pageError = $state(''); // page error text
-	let source = $state(''); // result source from backend
-	let allowedSymbols = $state(defaultSymbols); // default backend symbols
-	let allowedIntervals = $state(defaultIntervals); // default backend intervals
-	let allowedLookbacks = $state(defaultLookbacks); // default backend lookbacks
-	let allowedModes = $state(defaultModes); // default backtest modes
+	let pageRef = $state(null);
+	let loading = $state(false);
+	let pageError = $state('');
+	let source = $state('');
+	let allowedSymbols = $state(defaultSymbols);
+	let allowedIntervals = $state(defaultIntervals);
+	let allowedLookbacks = $state(defaultLookbacks);
 
 	const runBacktest = async (event) => {
-		event.preventDefault(); // stop native submit
+		event.preventDefault();
 
-		const selection = get(marketStore); // read selected values
-		loading = true; // start loading
-		pageError = ''; // clear previous error
-		source = ''; // clear previous source
+		const selection = get(marketStore);
+		loading = true;
+		pageError = '';
+		source = '';
 
 		try {
 			const response = await api.post('/backtest', {
-				symbol: selection.symbol, // backend body symbol
-				interval: selection.interval, // backend body interval
-				lookback: selection.backtestLookback, // historical range preset
-				mode: selection.backtestMode // strategy mode preset
+				symbol: selection.symbol,
+				interval: selection.interval,
+				lookback: selection.backtestLookback
 			});
 
-			source = response?.data?.source ?? ''; // track cache/api source
-			marketStore.setBacktest(response?.data?.data ?? null); // store full result payload
+			source = response?.data?.source ?? '';
+			marketStore.setBacktest(response?.data?.data ?? null);
 		} catch (requestError) {
-			const payload = requestError?.response?.data ?? {}; // normalize error payload
-			pageError = payload?.error ?? payload?.message ?? 'Unable to run backtest.'; // read error shape
+			const payload = requestError?.response?.data ?? {};
+			pageError = payload?.error ?? payload?.message ?? 'Unable to run backtest.';
 
 			if (Array.isArray(payload?.allowedSymbols)) {
-				allowedSymbols = payload.allowedSymbols; // adopt backend whitelist
+				allowedSymbols = payload.allowedSymbols;
 			}
 
 			if (Array.isArray(payload?.allowedIntervals)) {
-				allowedIntervals = payload.allowedIntervals; // adopt backend whitelist
+				allowedIntervals = payload.allowedIntervals;
 			}
 
 			if (Array.isArray(payload?.allowedLookbacks)) {
-				allowedLookbacks = payload.allowedLookbacks; // adopt backend lookbacks
-			}
-
-			if (Array.isArray(payload?.allowedModes)) {
-				allowedModes = payload.allowedModes; // adopt backend modes
+				allowedLookbacks = payload.allowedLookbacks;
 			}
 		} finally {
-			loading = false; // always stop loading
+			loading = false;
 		}
 	};
 
 	onMount(() => {
 		if (!get(authStore).isAuthenticated) {
-			goto('/login'); // protect route
-			return; // stop init
+			goto('/login');
+			return;
 		}
 
 		if (pageRef) {
 			gsap.fromTo(
 				pageRef.children,
-				{ y: 24, opacity: 0 }, // initial hidden state
+				{ y: 24, opacity: 0 },
 				{
-					y: 0, // final position
-					opacity: 1, // final visibility
-					duration: 0.7, // reveal duration
-					stagger: 0.08, // section stagger
-					ease: 'power3.out' // smooth ease
+					y: 0,
+					opacity: 1,
+					duration: 0.7,
+					stagger: 0.08,
+					ease: 'power3.out'
 				}
 			);
 		}
@@ -100,18 +93,15 @@
 		symbol={$marketStore.symbol}
 		interval={$marketStore.interval}
 		lookback={$marketStore.backtestLookback}
-		mode={$marketStore.backtestMode}
 		loading={loading}
 		allowedSymbols={allowedSymbols}
 		symbolGroups={symbolGroups}
 		allowedIntervals={allowedIntervals}
 		allowedLookbacks={allowedLookbacks}
-		allowedModes={allowedModes}
 		onSubmit={runBacktest}
 		onSymbolChange={(event) => marketStore.setSelection({ symbol: event.currentTarget.value })}
 		onIntervalChange={(event) => marketStore.setSelection({ interval: event.currentTarget.value })}
 		onLookbackChange={(event) => marketStore.setBacktestLookback(event.currentTarget.value)}
-		onModeChange={(event) => marketStore.setBacktestMode(event.currentTarget.value)}
 	/>
 
 	{#if pageError}
@@ -130,12 +120,12 @@
 
 <style>
 	.backtest {
-		padding: 30px 0 48px; /* page spacing */
-		display: grid; /* stack page sections */
-		gap: 18px; /* section gap */
+		padding: 30px 0 48px;
+		display: grid;
+		gap: 18px;
 	}
 
 	.backtest__loading {
-		padding: 28px; /* loading panel padding */
+		padding: 28px;
 	}
 </style>

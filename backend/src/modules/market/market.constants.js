@@ -1,29 +1,17 @@
 export const MARKET_INTERVALS = ['1h', '4h', '1day'];
 export const BACKTEST_LOOKBACKS = ['3M', '6M', '12M'];
-export const BACKTEST_MODES = ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'];
 
 export const MARKET_SYMBOLS = [
-    { symbol: 'USD/INR', provider: 'twelvedata', apiSymbol: 'USD/INR', type: 'forex' },
-    { symbol: 'EUR/INR', provider: 'twelvedata', apiSymbol: 'EUR/INR', type: 'forex' },
-    { symbol: 'GBP/INR', provider: 'twelvedata', apiSymbol: 'GBP/INR', type: 'forex' },
-    { symbol: 'JPY/INR', provider: 'twelvedata', apiSymbol: 'JPY/INR', type: 'forex' },
-    { symbol: 'BTC/USDT', provider: 'binance', apiSymbol: 'BTCUSDT', type: 'crypto' },
-    { symbol: 'ETH/USDT', provider: 'binance', apiSymbol: 'ETHUSDT', type: 'crypto' },
-    { symbol: 'BNB/USDT', provider: 'binance', apiSymbol: 'BNBUSDT', type: 'crypto' },
-    { symbol: 'SOL/USDT', provider: 'binance', apiSymbol: 'SOLUSDT', type: 'crypto' }
+    { symbol: 'BTC/USDT', futuresSymbol: 'BTCUSDT', type: 'crypto' },
+    { symbol: 'ETH/USDT', futuresSymbol: 'ETHUSDT', type: 'crypto' },
+    { symbol: 'BNB/USDT', futuresSymbol: 'BNBUSDT', type: 'crypto' },
+    { symbol: 'SOL/USDT', futuresSymbol: 'SOLUSDT', type: 'crypto' }
 ];
 
-const intervalMapByProvider = {
-    twelvedata: {
-        '1h': '1h',
-        '4h': '4h',
-        '1day': '1day'
-    },
-    binance: {
-        '1h': '1h',
-        '4h': '4h',
-        '1day': '1d'
-    }
+const intervalMap = {
+    '1h': '1h',
+    '4h': '4h',
+    '1day': '1d'
 };
 
 export const ALLOWED_SYMBOLS = MARKET_SYMBOLS.map((entry) => entry.symbol);
@@ -67,8 +55,7 @@ export const validateSymbolAndInterval = (symbol, interval) => {
     return { symbol: cleanSymbol, interval: cleanInterval, config: getMarketSymbolConfig(cleanSymbol) };
 };
 
-export const getProviderInterval = (provider, interval) =>
-    intervalMapByProvider[provider]?.[interval] ?? interval;
+export const getProviderInterval = (interval) => intervalMap[interval] ?? interval;
 
 export const normalizeBacktestLookback = (lookback) => lookback?.trim().toUpperCase() ?? '';
 
@@ -85,19 +72,4 @@ export const validateBacktestLookback = (lookback = '6M') => {
     }
 
     return cleanLookback;
-};
-
-export const normalizeBacktestMode = (mode) => mode?.trim().toUpperCase() ?? '';
-
-export const validateBacktestMode = (mode = 'BALANCED') => {
-    const cleanMode = normalizeBacktestMode(mode || 'BALANCED');
-
-    if (!BACKTEST_MODES.includes(cleanMode)) {
-        const error = new Error(`Invalid mode: ${cleanMode}. Allowed: ${BACKTEST_MODES.join(', ')}`);
-        error.statusCode = 400;
-        error.allowedModes = BACKTEST_MODES;
-        throw error;
-    }
-
-    return cleanMode;
 };

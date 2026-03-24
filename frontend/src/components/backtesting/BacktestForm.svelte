@@ -1,20 +1,17 @@
 <script>
 	let {
-		symbol = 'BTC/USDT', // default symbol
-		interval = '1h', // default interval
-		lookback = '6M', // default historical range
-		mode = 'BALANCED', // default strategy strictness
-		loading = false, // loading state
-		allowedSymbols = ['USD/INR', 'EUR/INR', 'GBP/INR', 'JPY/INR'], // backend allowed symbols
-		symbolGroups = [], // grouped market options
-		allowedIntervals = ['1h', '4h', '1day'], // backend allowed intervals
-		allowedLookbacks = ['3M', '6M', '12M'], // historical ranges
-		allowedModes = ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'], // strategy modes
-		onSubmit = () => {}, // form submit callback
-		onSymbolChange = () => {}, // symbol change callback
-		onIntervalChange = () => {}, // interval change callback
-		onLookbackChange = () => {}, // lookback change callback
-		onModeChange = () => {} // mode change callback
+		symbol = 'BTC/USDT',
+		interval = '1h',
+		lookback = '6M',
+		loading = false,
+		allowedSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT'],
+		symbolGroups = [],
+		allowedIntervals = ['1h', '4h', '1day'],
+		allowedLookbacks = ['3M', '6M', '12M'],
+		onSubmit = () => {},
+		onSymbolChange = () => {},
+		onIntervalChange = () => {},
+		onLookbackChange = () => {}
 	} = $props();
 </script>
 
@@ -63,15 +60,6 @@
 				{/each}
 			</select>
 		</div>
-
-		<div class="field">
-			<label for="backtest-mode">Mode</label>
-			<select id="backtest-mode" class="select" value={mode} onchange={onModeChange}>
-				{#each allowedModes as option}
-					<option value={option}>{option}</option>
-				{/each}
-			</select>
-		</div>
 	</div>
 
 	<button class="btn btn-primary" type="submit" disabled={loading}>
@@ -81,27 +69,27 @@
 
 <style>
 	.backtest-form {
-		padding: 22px; /* form padding */
-		display: grid; /* stack content */
-		gap: 18px; /* spacing */
+		padding: 22px;
+		display: grid;
+		gap: 18px;
 	}
 
 	.backtest-form__eyebrow {
-		color: var(--text-dim); /* eyebrow color */
-		font-size: 0.8rem; /* eyebrow size */
-		text-transform: uppercase; /* uppercase */
-		letter-spacing: 0.18em; /* tracking */
+		color: var(--text-dim);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.18em;
 	}
 
 	.backtest-form__grid {
-		display: grid; /* controls grid */
-		grid-template-columns: repeat(4, minmax(0, 1fr)); /* four controls */
-		gap: 14px; /* control gap */
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 14px;
 	}
 
 	@media (max-width: 680px) {
 		.backtest-form__grid {
-			grid-template-columns: 1fr; /* stack fields */
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
