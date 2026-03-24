@@ -14,6 +14,7 @@
 		allowedIntervals as defaultIntervals,
 		allowedSymbols as defaultSymbols,
 		backtestLookbacks as defaultLookbacks,
+		backtestThresholdPresets,
 		getBacktestLookbacksForInterval,
 		symbolGroups
 	} from '$lib/config/markets';
@@ -47,7 +48,12 @@
 			const response = await api.post('/backtest', {
 				symbol: selection.symbol,
 				interval: selection.interval,
-				lookback: selection.backtestLookback
+				lookback: selection.backtestLookback,
+				config: {
+					scoreThreshold: Number(selection.backtestThreshold)
+				}
+			}, {
+				timeout: 180000
 			});
 
 			source = response?.data?.source ?? '';
@@ -105,11 +111,13 @@
 		symbol={$marketStore.symbol}
 		interval={$marketStore.interval}
 		lookback={$marketStore.backtestLookback}
+		threshold={$marketStore.backtestThreshold}
 		loading={loading}
 		allowedSymbols={allowedSymbols}
 		symbolGroups={symbolGroups}
 		allowedIntervals={allowedIntervals}
 		allowedLookbacks={allowedLookbacks}
+		allowedThresholds={backtestThresholdPresets}
 		onSubmit={runBacktest}
 		onSymbolChange={(event) => marketStore.setSelection({ symbol: event.currentTarget.value })}
 		onIntervalChange={(event) => {
@@ -118,6 +126,7 @@
 			syncLookbacksForInterval(nextInterval);
 		}}
 		onLookbackChange={(event) => marketStore.setBacktestLookback(event.currentTarget.value)}
+		onThresholdChange={(event) => marketStore.setBacktestThreshold(event.currentTarget.value)}
 	/>
 
 	{#if pageError}

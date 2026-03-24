@@ -1,26 +1,26 @@
 {
-  "symbol": "BTC/USDT",
-  "interval": "1day",
+  "symbol": "SOL/USDT",
+  "interval": "4h",
   "lookback": "2Y",
-  "generatedAt": "2026-03-24T05:44:12.475Z",
+  "generatedAt": "2026-03-24T06:24:19.417Z",
   "runs": [
     {
       "config": {
-        "scoreThreshold": 0.5,
+        "scoreThreshold": 0.4,
         "stopLossAtrMultiplier": 1.8,
         "takeProfitAtrMultiplier": 2.5,
         "timeStopCandles": 8,
         "triggerFraction": 0.5
       },
       "metrics": {
-        "totalTrades": 2,
-        "winRate": 0.5,
-        "avgWin": 138.89,
-        "avgLoss": 101.39,
-        "riskRewardRatio": 1.3699,
-        "profitFactor": 1.3699,
-        "expectancy": 18.75,
-        "maxDrawdown": 1
+        "totalTrades": 50,
+        "winRate": 0.36,
+        "avgWin": 118.33,
+        "avgLoss": 91.14,
+        "riskRewardRatio": 1.2983,
+        "profitFactor": 0.7303,
+        "expectancy": -15.7314,
+        "maxDrawdown": 12.95
       }
     }
   ]

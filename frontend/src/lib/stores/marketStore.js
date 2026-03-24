@@ -4,6 +4,7 @@ const initialState = {
 	symbol: 'BTC/USDT',
 	interval: '1h',
 	backtestLookback: '6M',
+	backtestThreshold: '0.45',
 	candles: [],
 	signal: null,
 	aiAnalysis: null,
@@ -29,6 +30,11 @@ const createMarketStore = () => {
 			update((state) => ({
 				...state,
 				backtestLookback: lookback ?? state.backtestLookback
+			})),
+		setBacktestThreshold: (threshold) =>
+			update((state) => ({
+				...state,
+				backtestThreshold: threshold ?? state.backtestThreshold
 			})),
 		setCandles: (candles) =>
 			update((state) => ({

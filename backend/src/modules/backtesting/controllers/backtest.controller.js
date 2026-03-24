@@ -8,8 +8,10 @@ import {
 } from '../../market/market.constants.js';
 
 export const runBacktestController = async (req, res) => {
+    const { symbol, interval, lookback, config, configurations, runBatchBacktest, maxConfigs } =
+        req.body ?? {};
+
     try {
-        const { symbol, interval, lookback, config, configurations, runBatchBacktest, maxConfigs } = req.body;
         const { symbol: cleanSymbol, interval: cleanInterval } = validateSymbolAndInterval(
             symbol,
             interval

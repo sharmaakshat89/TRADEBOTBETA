@@ -23,6 +23,7 @@ const KLINE_BATCH_LIMIT = 1500;
 
 export const allowedSymbols = symbolGroups.flatMap((group) => group.options);
 export const allowedIntervals = ['1h', '4h', '1day'];
+export const backtestThresholdPresets = ['0.4', '0.45', '0.5'];
 
 export const getBacktestLookbacksForInterval = (interval = '1h') =>
 	LOOKBACK_OPTIONS.filter((lookback) => {

@@ -3,15 +3,18 @@
 		symbol = 'BTC/USDT',
 		interval = '1h',
 		lookback = '6M',
+		threshold = '0.45',
 		loading = false,
 		allowedSymbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT'],
 		symbolGroups = [],
 		allowedIntervals = ['1h', '4h', '1day'],
 		allowedLookbacks = ['6M', '12M', '1Y', '2Y'],
+		allowedThresholds = ['0.4', '0.45', '0.5'],
 		onSubmit = () => {},
 		onSymbolChange = () => {},
 		onIntervalChange = () => {},
-		onLookbackChange = () => {}
+		onLookbackChange = () => {},
+		onThresholdChange = () => {}
 	} = $props();
 </script>
 
@@ -60,6 +63,15 @@
 				{/each}
 			</select>
 		</div>
+
+		<div class="field">
+			<label for="backtest-threshold">Threshold</label>
+			<select id="backtest-threshold" class="select" value={threshold} onchange={onThresholdChange}>
+				{#each allowedThresholds as option}
+					<option value={option}>{option}</option>
+				{/each}
+			</select>
+		</div>
 	</div>
 
 	<button class="btn btn-primary" type="submit" disabled={loading}>
@@ -83,7 +95,7 @@
 
 	.backtest-form__grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 14px;
 	}
 
