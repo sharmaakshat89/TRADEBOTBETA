@@ -1,26 +1,26 @@
 {
-  "symbol": "ETH/USDT",
-  "interval": "4h",
-  "lookback": "5Y",
-  "generatedAt": "2026-03-24T06:32:26.420Z",
+  "symbol": "BNB/USDT",
+  "interval": "1h",
+  "lookback": "6M",
+  "generatedAt": "2026-03-24T16:47:47.838Z",
   "runs": [
     {
       "config": {
-        "scoreThreshold": 0.4,
+        "scoreThreshold": 0.45,
         "stopLossAtrMultiplier": 1.8,
         "takeProfitAtrMultiplier": 2.5,
         "timeStopCandles": 8,
         "triggerFraction": 0.5
       },
       "metrics": {
-        "totalTrades": 129,
-        "winRate": 0.4961,
-        "avgWin": 137.33,
-        "avgLoss": 86.91,
-        "riskRewardRatio": 1.5801,
-        "profitFactor": 1.5558,
-        "expectancy": 24.3407,
-        "maxDrawdown": 5.24
+        "totalTrades": 17,
+        "winRate": 0.3529,
+        "avgWin": 114.61,
+        "avgLoss": 79.04,
+        "riskRewardRatio": 1.4501,
+        "profitFactor": 0.7909,
+        "expectancy": -10.6924,
+        "maxDrawdown": 2.94
       }
     }
   ]

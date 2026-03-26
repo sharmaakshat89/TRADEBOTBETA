@@ -1,4 +1,5 @@
 import axios from 'axios'; // axios client
+import { authStore } from '$lib/stores/authStore'; // sync auth state on 401
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'; // backend base url
 
@@ -49,7 +50,14 @@ api.interceptors.response.use(
 		const status = error?.response?.status; // extract status safely
 
 		if (typeof window !== 'undefined' && status === 401) {
-			localStorage.removeItem(authStorageKey); // clear invalid auth
+			authStore.clearAuth(); // clear invalid auth everywhere
+
+			const currentPath = window.location.pathname; // inspect current route
+			const isPublicRoute = currentPath === '/login' || currentPath === '/register'; // keep auth pages usable
+
+			if (!isPublicRoute) {
+				window.location.href = '/login'; // force a clean re-auth flow
+			}
 		}
 
 		return Promise.reject(error); // let caller handle message

@@ -22,7 +22,19 @@
 	let pageError = $state(''); // route level error
 	let aiError = $state(''); // ai panel error
 
+	const redirectToLogin = async () => {
+		authStore.clearAuth(); // clear stale or missing auth state
+		await goto('/login'); // return to auth flow
+	};
+
 	const refreshSignal = async () => {
+		const auth = get(authStore); // read auth before protected request
+
+		if (!auth?.token) {
+			await redirectToLogin(); // stop if no token is available
+			return;
+		}
+
 		const state = get(marketStore); // read market selection
 		loadingSignal = true; // start signal loading
 		pageError = ''; // clear old error
@@ -39,6 +51,11 @@
 			marketStore.setSignal(payload ?? null); // store raw signal payload
 			marketStore.setCandles(payload?.candles ?? []); // ensure chart has immediate data
 		} catch (requestError) {
+			if (requestError?.response?.status === 401) {
+				await redirectToLogin(); // expired sessions should not stay on dashboard
+				return;
+			}
+
 			pageError =
 				requestError?.response?.data?.error ??
 				requestError?.response?.data?.message ??
@@ -49,6 +66,13 @@
 	};
 
 	const refreshAI = async () => {
+		const auth = get(authStore); // read auth before protected request
+
+		if (!auth?.token) {
+			await redirectToLogin(); // stop if no token is available
+			return;
+		}
+
 		const state = get(marketStore); // read market selection
 		loadingAI = true; // start ai loading
 		aiError = ''; // clear stale ai error
@@ -63,6 +87,11 @@
 			marketStore.setSignal(payload?.quantSignal ?? get(marketStore).signal); // keep quant payload synced
 			marketStore.setAIAnalysis(payload?.aiValidation ?? null); // store ai validation
 		} catch (requestError) {
+			if (requestError?.response?.status === 401) {
+				await redirectToLogin(); // expired sessions should not stay on dashboard
+				return;
+			}
+
 			aiError =
 				requestError?.response?.data?.error ??
 				requestError?.response?.data?.message ??
@@ -80,8 +109,10 @@
 	};
 
 	onMount(async () => {
-		if (!get(authStore).isAuthenticated) {
-			goto('/login'); // protect dashboard route
+		const auth = get(authStore); // inspect auth state at mount
+
+		if (!auth?.isAuthenticated || !auth?.token) {
+			await goto('/login'); // protect dashboard route
 			return; // stop dashboard init
 		}
 
@@ -99,7 +130,7 @@
 			);
 		}
 
-		websocketManager.connect(); // start live market feed
+		websocketManager.connect(); // start live market feed only for valid sessions
 		await refreshSignal(); // fetch initial signal
 
 		return () => {
