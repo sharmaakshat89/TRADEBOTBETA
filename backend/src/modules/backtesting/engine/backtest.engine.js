@@ -1,29 +1,20 @@
-import { getUnifiedSignal } from '../../trading/services/quant.service.js';
+import { 
+    buildLadderIndicators, 
+    getSignal 
+} from '../../trading/services/quant.service.js';
 
 const INITIAL_BALANCE = 10000;
 const WARMUP_PERIOD = 150;
 const RISK_PER_TRADE_PCT = 0.01;
-const TIME_STOP_CANDLES = 8;
-const TP_PROGRESS_FRACTION = 0.5;
-
-const DEFAULT_BACKTEST_CONFIG = {
-    scoreThreshold: 0.5,
-    stopLossAtrMultiplier: 1.8,
-    takeProfitAtrMultiplier: 2.5,
-    timeStopCandles: TIME_STOP_CANDLES,
-    triggerFraction: TP_PROGRESS_FRACTION
-};
 
 const safeNumber = (value, fallback = 0) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const safeDivide = (numerator, denominator, fallback = 0) => {
-    if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
-        return fallback;
-    }
-    return numerator / denominator;
+const safeDivide = (num, den, fallback = 0) => {
+    if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return fallback;
+    return num / den;
 };
 
 const roundNumber = (value, decimals = 2) => {
@@ -31,121 +22,39 @@ const roundNumber = (value, decimals = 2) => {
     return Number(value.toFixed(decimals));
 };
 
-const normalizeConfig = (config = {}) => ({
-    scoreThreshold: safeNumber(config.scoreThreshold, DEFAULT_BACKTEST_CONFIG.scoreThreshold),
-    stopLossAtrMultiplier: safeNumber(
-        config.stopLossAtrMultiplier,
-        DEFAULT_BACKTEST_CONFIG.stopLossAtrMultiplier
-    ),
-    takeProfitAtrMultiplier: safeNumber(
-        config.takeProfitAtrMultiplier,
-        DEFAULT_BACKTEST_CONFIG.takeProfitAtrMultiplier
-    ),
-    timeStopCandles: Math.max(
-        1,
-        Math.round(safeNumber(config.timeStopCandles, DEFAULT_BACKTEST_CONFIG.timeStopCandles))
-    ),
-    triggerFraction: Math.max(
-        0,
-        safeNumber(config.triggerFraction, DEFAULT_BACKTEST_CONFIG.triggerFraction)
-    )
-});
-
 const calculateMaxDrawdown = (equityCurve) => {
-    if (!equityCurve || equityCurve.length < 2) return 0;
-
     let peak = equityCurve[0].balance;
-    let maxDrawdown = 0;
+    let maxDD = 0;
 
     for (const point of equityCurve) {
         if (point.balance > peak) peak = point.balance;
-        const drawdown = safeDivide(peak - point.balance, peak, 0);
-        if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+        const dd = (peak - point.balance) / peak;
+        if (dd > maxDD) maxDD = dd;
     }
 
-    return roundNumber(maxDrawdown * 100);
+    return roundNumber(maxDD * 100);
 };
 
 const buildMetrics = (trades, equityCurve, finalBalance) => {
-    const winningTrades = trades.filter((trade) => trade.pnl > 0);
-    const losingTrades = trades.filter((trade) => trade.pnl < 0);
-    const totalTrades = trades.length;
-    const totalProfit = winningTrades.reduce((sum, trade) => sum + trade.pnl, 0);
-    const totalLoss = losingTrades.reduce((sum, trade) => sum + Math.abs(trade.pnl), 0);
-    const avgWin = safeDivide(totalProfit, winningTrades.length, 0);
-    const avgLoss = safeDivide(totalLoss, losingTrades.length, 0);
-    const winRateRatio = safeDivide(winningTrades.length, totalTrades, 0);
+    const wins = trades.filter(t => t.pnl > 0);
+    const losses = trades.filter(t => t.pnl < 0);
+
+    const totalProfit = wins.reduce((s, t) => s + t.pnl, 0);
+    const totalLoss = losses.reduce((s, t) => s + Math.abs(t.pnl), 0);
+
+    const winRate = safeDivide(wins.length, trades.length);
 
     return {
-        totalTrades,
-        winRate: roundNumber(winRateRatio, 4),
-        avgWin: roundNumber(avgWin),
-        avgLoss: roundNumber(avgLoss),
-        riskRewardRatio: roundNumber(safeDivide(avgWin, avgLoss, 0), 4),
-        profitFactor: roundNumber(safeDivide(totalProfit, totalLoss, 0), 4),
-        expectancy: roundNumber((winRateRatio * avgWin) - ((1 - winRateRatio) * avgLoss), 4),
+        totalTrades: trades.length,
+        winRate: roundNumber(winRate * 100, 2),
+        avgWin: roundNumber(safeDivide(totalProfit, wins.length)),
+        avgLoss: roundNumber(safeDivide(totalLoss, losses.length)),
+        profitFactor: roundNumber(safeDivide(totalProfit, totalLoss)),
         maxDrawdown: calculateMaxDrawdown(equityCurve),
-        totalProfit: roundNumber(totalProfit),
-        totalLoss: roundNumber(totalLoss),
-        winningTrades: winningTrades.length,
-        losingTrades: losingTrades.length,
         finalBalance: roundNumber(finalBalance),
         netPnL: roundNumber(finalBalance - INITIAL_BALANCE),
-        netPnLPercent: roundNumber(safeDivide(finalBalance - INITIAL_BALANCE, INITIAL_BALANCE, 0) * 100),
-        winRatePercent: roundNumber(winRateRatio * 100, 2)
+        netPnLPercent: roundNumber(((finalBalance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100)
     };
-};
-
-const buildSummary = (metrics) => ({
-    totalTrades: metrics.totalTrades,
-    winningTrades: metrics.winningTrades,
-    losingTrades: metrics.losingTrades,
-    winRate: metrics.winRatePercent,
-    winRateRatio: metrics.winRate,
-    avgWin: metrics.avgWin,
-    avgLoss: metrics.avgLoss,
-    netPnL: metrics.netPnL,
-    netPnLPercent: metrics.netPnLPercent,
-    totalProfit: metrics.totalProfit,
-    totalLoss: metrics.totalLoss,
-    maxDrawdown: metrics.maxDrawdown,
-    finalBalance: metrics.finalBalance,
-    riskRewardRatio: metrics.riskRewardRatio,
-    profitFactor: metrics.profitFactor,
-    expectancy: metrics.expectancy
-});
-
-const compileResults = (trades, equityCurve, finalBalance, config) => {
-    const metrics = buildMetrics(trades, equityCurve, finalBalance);
-    const baseResult = {
-        success: true,
-        config,
-        metrics: {
-            totalTrades: metrics.totalTrades,
-            winRate: metrics.winRate,
-            avgWin: metrics.avgWin,
-            avgLoss: metrics.avgLoss,
-            riskRewardRatio: metrics.riskRewardRatio,
-            profitFactor: metrics.profitFactor,
-            expectancy: metrics.expectancy,
-            maxDrawdown: metrics.maxDrawdown
-        },
-        summary: buildSummary(metrics),
-        trades,
-        equityCurve
-    };
-
-    if (!trades.length) {
-        return {
-            ...baseResult,
-            emptyState: {
-                title: 'No trades in this period',
-                message: 'No valid trend-following setups passed regime and funding filters in the selected range.'
-            }
-        };
-    }
-
-    return baseResult;
 };
 
 const buildTradeRecord = ({
@@ -163,7 +72,10 @@ const buildTradeRecord = ({
 
     const riskAmount = balance * RISK_PER_TRADE_PCT;
     const stopDistance = Math.abs(openTrade.entryPrice - openTrade.stopLoss);
-    const positionSize = stopDistance > 0 ? riskAmount / stopDistance : 0;
+
+    const baseSize = stopDistance > 0 ? riskAmount / stopDistance : 0;
+    const positionSize = baseSize * (openTrade.positionSize || 1);
+
     const pnl = priceDiff * positionSize;
     const newBalance = balance + pnl;
 
@@ -174,10 +86,6 @@ const buildTradeRecord = ({
             exitReason,
             entryPrice: roundNumber(openTrade.entryPrice, 4),
             exitPrice: roundNumber(exitPrice, 4),
-            stopLoss: roundNumber(openTrade.stopLoss, 4),
-            takeProfit: roundNumber(openTrade.takeProfit, 4),
-            positionSize: roundNumber(positionSize),
-            riskAmount: roundNumber(riskAmount),
             pnl: roundNumber(pnl),
             entryIndex: openTrade.entryIndex,
             exitIndex
@@ -193,182 +101,136 @@ const getHalfTarget = (trade) => {
         : trade.entryPrice - distance * trade.triggerFraction;
 };
 
-const deriveSignalForConfig = (signalResult, config) => {
-    if (!signalResult?.success) return 'NO_TRADE';
-    if (signalResult.regime !== 'TREND') return 'NO_TRADE';
-    if (safeNumber(signalResult.context?.phi, 0) <= 0) return 'NO_TRADE';
-    if (signalResult.score > config.scoreThreshold) return 'BUY';
-    if (signalResult.score < -config.scoreThreshold) return 'SELL';
-    return 'NO_TRADE';
-};
-
-const buildRiskForConfig = (entryPrice, direction, atr14, config) => {
-    const safeAtr = safeNumber(atr14, 0);
-    if (safeAtr <= 0) {
-        return { stopLoss: entryPrice, takeProfit: entryPrice };
-    }
-
-    return {
-        stopLoss: entryPrice - direction * (config.stopLossAtrMultiplier * safeAtr),
-        takeProfit: entryPrice + direction * (config.takeProfitAtrMultiplier * safeAtr)
-    };
-};
-
-export const runBacktest = (symbol, interval, candles, config = {}) => {
+export const runBacktest = (symbol, interval, candles) => {
     if (!candles || candles.length < WARMUP_PERIOD + 1) {
-        return {
-            success: false,
-            error: `Need ${WARMUP_PERIOD + 1}+ candles, got ${candles?.length ?? 0}`
-        };
+        return { success: false };
     }
 
-    const normalizedConfig = normalizeConfig(config);
+    const indicators = buildLadderIndicators(candles);
+
     let balance = INITIAL_BALANCE;
     let openTrade = null;
-    const trades = [];
-    const equityCurve = [{ index: 0, balance: INITIAL_BALANCE }];
 
-    for (let i = WARMUP_PERIOD; i < candles.length; i += 1) {
+    const trades = [];
+    const equityCurve = [{ index: 0, balance }];
+
+    for (let i = WARMUP_PERIOD; i < candles.length; i++) {
         const candle = candles[i];
 
-        if (openTrade) {
-            const halfTarget = getHalfTarget(openTrade);
-            const reachedHalfTarget =
-                openTrade.type === 'BUY' ? candle.high >= halfTarget : candle.low <= halfTarget;
+        // =============================
+        // 🧠 ENTRY FILL
+        // =============================
+        if (openTrade && openTrade.entries) {
+            for (const entry of openTrade.entries) {
+                if (entry.filled) continue;
 
-            if (reachedHalfTarget) {
-                openTrade.hitHalfTarget = true;
-            }
+                let fill = false;
 
-            if (openTrade.type === 'BUY') {
-                if (candle.low <= openTrade.stopLoss) {
-                    const { tradeRecord, newBalance } = buildTradeRecord({
-                        openTrade,
-                        exitPrice: openTrade.stopLoss,
-                        result: 'LOSS',
-                        exitIndex: i,
-                        balance,
-                        exitReason: 'STOP_LOSS'
-                    });
-                    balance = newBalance;
-                    trades.push(tradeRecord);
-                    openTrade = null;
-                    equityCurve.push({ index: i, balance: roundNumber(balance) });
-                } else if (candle.high >= openTrade.takeProfit) {
-                    const { tradeRecord, newBalance } = buildTradeRecord({
-                        openTrade,
-                        exitPrice: openTrade.takeProfit,
-                        result: 'WIN',
-                        exitIndex: i,
-                        balance,
-                        exitReason: 'TAKE_PROFIT'
-                    });
-                    balance = newBalance;
-                    trades.push(tradeRecord);
-                    openTrade = null;
-                    equityCurve.push({ index: i, balance: roundNumber(balance) });
+                if (entry.type === 'MARKET') fill = true;
+                else if (entry.type === 'LIMIT') {
+                    fill = openTrade.type === 'BUY'
+                        ? candle.low <= entry.price
+                        : candle.high >= entry.price;
                 }
-            } else {
-                if (candle.high >= openTrade.stopLoss) {
-                    const { tradeRecord, newBalance } = buildTradeRecord({
-                        openTrade,
-                        exitPrice: openTrade.stopLoss,
-                        result: 'LOSS',
-                        exitIndex: i,
-                        balance,
-                        exitReason: 'STOP_LOSS'
-                    });
-                    balance = newBalance;
-                    trades.push(tradeRecord);
-                    openTrade = null;
-                    equityCurve.push({ index: i, balance: roundNumber(balance) });
-                } else if (candle.low <= openTrade.takeProfit) {
-                    const { tradeRecord, newBalance } = buildTradeRecord({
-                        openTrade,
-                        exitPrice: openTrade.takeProfit,
-                        result: 'WIN',
-                        exitIndex: i,
-                        balance,
-                        exitReason: 'TAKE_PROFIT'
-                    });
-                    balance = newBalance;
-                    trades.push(tradeRecord);
-                    openTrade = null;
-                    equityCurve.push({ index: i, balance: roundNumber(balance) });
+
+                if (fill) {
+                    entry.filled = true;
+                    openTrade.totalQty += entry.qtyPct;
+                    openTrade.totalCost += entry.price * entry.qtyPct;
+
+                    openTrade.entryPrice = openTrade.totalCost / openTrade.totalQty;
+                    openTrade.positionSize = openTrade.totalQty;
                 }
-            }
-
-            if (
-                openTrade &&
-                i - openTrade.entryIndex >= openTrade.timeStopCandles &&
-                !openTrade.hitHalfTarget
-            ) {
-                const forceWin =
-                    openTrade.type === 'BUY'
-                        ? candle.close >= openTrade.entryPrice
-                        : candle.close <= openTrade.entryPrice;
-
-                const { tradeRecord, newBalance } = buildTradeRecord({
-                    openTrade,
-                    exitPrice: candle.close,
-                    result: forceWin ? 'WIN' : 'LOSS',
-                    exitIndex: i,
-                    balance,
-                    exitReason: 'TIME_STOP'
-                });
-                balance = newBalance;
-                trades.push(tradeRecord);
-                openTrade = null;
-                equityCurve.push({ index: i, balance: roundNumber(balance) });
             }
         }
 
+        // =============================
+        // 🧠 EXIT
+        // =============================
+        if (openTrade && openTrade.entryPrice !== null) {
+            const halfTarget = getHalfTarget(openTrade);
+
+            if (
+                (openTrade.type === 'BUY' && candle.high >= halfTarget) ||
+                (openTrade.type === 'SELL' && candle.low <= halfTarget)
+            ) {
+                openTrade.hitHalfTarget = true;
+            }
+
+            const hitSL = openTrade.type === 'BUY'
+                ? candle.low <= openTrade.stopLoss
+                : candle.high >= openTrade.stopLoss;
+
+            const hitTP = openTrade.type === 'BUY'
+                ? candle.high >= openTrade.takeProfit
+                : candle.low <= openTrade.takeProfit;
+
+            if (hitSL || hitTP) {
+                const { tradeRecord, newBalance } = buildTradeRecord({
+                    openTrade,
+                    exitPrice: hitSL ? openTrade.stopLoss : openTrade.takeProfit,
+                    result: hitSL ? 'LOSS' : 'WIN',
+                    exitIndex: i,
+                    balance,
+                    exitReason: hitSL ? 'SL' : 'TP'
+                });
+
+                balance = newBalance;
+                trades.push(tradeRecord);
+                openTrade = null;
+                equityCurve.push({ index: i, balance });
+                continue;
+            }
+
+            if (
+                i - openTrade.entryIndex >= openTrade.timeStopCandles &&
+                !openTrade.hitHalfTarget
+            ) {
+                const { tradeRecord, newBalance } = buildTradeRecord({
+                    openTrade,
+                    exitPrice: candle.close,
+                    result: 'LOSS',
+                    exitIndex: i,
+                    balance,
+                    exitReason: 'TIME'
+                });
+
+                balance = newBalance;
+                trades.push(tradeRecord);
+                openTrade = null;
+                equityCurve.push({ index: i, balance });
+            }
+        }
+
+        // =============================
+        // 🧠 ENTRY
+        // =============================
         if (!openTrade) {
-            const signalResult = getUnifiedSignal(symbol, interval, candles.slice(0, i + 1));
-            const derivedSignal = deriveSignalForConfig(signalResult, normalizedConfig);
+            const signal = getSignal(candles, indicators, i);
 
-            if (signalResult.success && (derivedSignal === 'BUY' || derivedSignal === 'SELL')) {
-                const direction = derivedSignal === 'SELL' ? -1 : 1;
-                const risk = buildRiskForConfig(
-                    candle.close,
-                    direction,
-                    signalResult.indicators?.atr14,
-                    normalizedConfig
-                );
-
+            if (signal.signal === 'BUY' || signal.signal === 'SELL') {
                 openTrade = {
-                    type: derivedSignal,
-                    entryPrice: candle.close,
-                    stopLoss: risk.stopLoss,
-                    takeProfit: risk.takeProfit,
+                    type: signal.signal,
+                    entries: signal.entries.map(e => ({ ...e, filled: false })),
+                    entryPrice: null,
+                    positionSize: 0,
+                    totalQty: 0,
+                    totalCost: 0,
+                    stopLoss: signal.risk.stopLoss,
+                    takeProfit: signal.risk.takeProfit,
                     entryIndex: i,
                     hitHalfTarget: false,
-                    timeStopCandles: normalizedConfig.timeStopCandles,
-                    triggerFraction: normalizedConfig.triggerFraction
+                    timeStopCandles: signal.risk.timeStopCandles,
+                    triggerFraction: signal.risk.triggerFraction
                 };
             }
         }
     }
 
-    if (openTrade) {
-        const lastCandle = candles.at(-1);
-        const forceWin =
-            openTrade.type === 'BUY'
-                ? lastCandle.close >= openTrade.entryPrice
-                : lastCandle.close <= openTrade.entryPrice;
-
-        const { tradeRecord, newBalance } = buildTradeRecord({
-            openTrade,
-            exitPrice: lastCandle.close,
-            result: forceWin ? 'WIN' : 'LOSS',
-            exitIndex: candles.length - 1,
-            balance,
-            exitReason: 'FORCE_CLOSE'
-        });
-        balance = newBalance;
-        trades.push({ ...tradeRecord, forceClose: true });
-        equityCurve.push({ index: candles.length - 1, balance: roundNumber(balance) });
-    }
-
-    return compileResults(trades, equityCurve, balance, normalizedConfig);
+    return {
+        success: true,
+        summary: buildMetrics(trades, equityCurve, balance),
+        trades,
+        equityCurve
+    };
 };

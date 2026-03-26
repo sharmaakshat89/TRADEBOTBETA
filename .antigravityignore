@@ -1,0 +1,22 @@
+# Standard heavy folders
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Large data/logs that confuse the Agent
+logs/
+*.log
+dump/
+data/
+.git/
+
+# Non-code assets
+public/assets/
+*.png
+*.jpg
+*.svg
+
+# Documentation that isn't required for logic
+docs/
+temp/

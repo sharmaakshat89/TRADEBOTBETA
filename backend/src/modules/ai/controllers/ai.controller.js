@@ -1,7 +1,7 @@
 import { getAIValidation } from "../services/ai.service.js";
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
-import { getUnifiedSignal } from "../../trading/services/quant.service.js";
+import { getSignal } from "../../trading/services/quant.service.js";
 
 export const getAIAnalysis = async (req, res) => {
     try {
@@ -20,7 +20,7 @@ export const getAIAnalysis = async (req, res) => {
             });
         }
 
-        const quantSignal = getUnifiedSignal(cleanSymbol, cleanInterval, marketData.data);
+        const quantSignal = getSignal(cleanSymbol, cleanInterval, marketData.data);
 
         if (!quantSignal.success) {
             return res.status(422).json({

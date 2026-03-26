@@ -48,10 +48,7 @@
 			const response = await api.post('/backtest', {
 				symbol: selection.symbol,
 				interval: selection.interval,
-				lookback: selection.backtestLookback,
-				config: {
-					scoreThreshold: Number(selection.backtestThreshold)
-				}
+				lookback: selection.backtestLookback
 			}, {
 				timeout: 180000
 			});

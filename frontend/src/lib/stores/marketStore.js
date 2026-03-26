@@ -5,6 +5,7 @@ const initialState = {
 	interval: '1h',
 	backtestLookback: '6M',
 	backtestThreshold: '0.45',
+	backtestStrategyType: 'YUKTI_V1',
 	candles: [],
 	signal: null,
 	aiAnalysis: null,
@@ -35,6 +36,11 @@ const createMarketStore = () => {
 			update((state) => ({
 				...state,
 				backtestThreshold: threshold ?? state.backtestThreshold
+			})),
+		setBacktestStrategyType: (strategyType) =>
+			update((state) => ({
+				...state,
+				backtestStrategyType: strategyType ?? state.backtestStrategyType
 			})),
 		setCandles: (candles) =>
 			update((state) => ({

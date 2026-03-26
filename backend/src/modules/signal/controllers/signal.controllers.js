@@ -1,6 +1,6 @@
 
 
-import { getUnifiedSignal } from "../../trading/services/quant.service.js";
+import { getSignal as getQuantSignal, buildLadderIndicators } from "../../trading/services/quant.service.js";
 
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
@@ -26,7 +26,9 @@ Backend  → Frontend   (data BHEJNA — response) */
             })
         }
         
-        const signal = getUnifiedSignal(cleanSymbol, cleanInterval, marketData.data) //return hoga : { success, signal, score, risk, indicators }
+        const candles = marketData.data;
+        const indicators = buildLadderIndicators(candles);
+        const signal = getQuantSignal(candles, indicators, candles.length - 1);
 
         if(!signal.success){
             return res.status(422).json({
