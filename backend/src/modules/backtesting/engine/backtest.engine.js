@@ -6,6 +6,9 @@ import {
 const INITIAL_BALANCE = 10000;
 const WARMUP_PERIOD = 150;
 const RISK_PER_TRADE_PCT = 0.01;
+const SELL_FEE_RATE = 0.002;
+const TRANSACTION_TDS_RATE = 0.01;
+const PROFIT_TAX_RATE = 0.3;
 
 const safeNumber = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -41,6 +44,9 @@ const buildMetrics = (trades, equityCurve, finalBalance) => {
 
     const totalProfit = wins.reduce((s, t) => s + t.pnl, 0);
     const totalLoss = losses.reduce((s, t) => s + Math.abs(t.pnl), 0);
+    const totalFees = trades.reduce((sum, trade) => sum + safeNumber(trade.fees), 0);
+    const totalTds = trades.reduce((sum, trade) => sum + safeNumber(trade.tds), 0);
+    const totalIncomeTax = trades.reduce((sum, trade) => sum + safeNumber(trade.incomeTax), 0);
 
     const winRate = safeDivide(wins.length, trades.length);
 
@@ -53,7 +59,10 @@ const buildMetrics = (trades, equityCurve, finalBalance) => {
         maxDrawdown: calculateMaxDrawdown(equityCurve),
         finalBalance: roundNumber(finalBalance),
         netPnL: roundNumber(finalBalance - INITIAL_BALANCE),
-        netPnLPercent: roundNumber(((finalBalance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100)
+        netPnLPercent: roundNumber(((finalBalance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100),
+        totalFees: roundNumber(totalFees),
+        totalTds: roundNumber(totalTds),
+        totalIncomeTax: roundNumber(totalIncomeTax)
     };
 };
 
@@ -75,8 +84,14 @@ const buildTradeRecord = ({
 
     const baseSize = stopDistance > 0 ? riskAmount / stopDistance : 0;
     const positionSize = baseSize * (openTrade.positionSize || 1);
-
-    const pnl = priceDiff * positionSize;
+    const entryNotional = openTrade.entryPrice * positionSize;
+    const exitNotional = exitPrice * positionSize;
+    const grossPnl = priceDiff * positionSize;
+    const transactionTds = (entryNotional * TRANSACTION_TDS_RATE) + (exitNotional * TRANSACTION_TDS_RATE);
+    const sellFees = exitNotional * SELL_FEE_RATE;
+    const taxableProfit = Math.max(grossPnl - transactionTds - sellFees, 0);
+    const incomeTax = taxableProfit * PROFIT_TAX_RATE;
+    const pnl = grossPnl - transactionTds - sellFees - incomeTax;
     const newBalance = balance + pnl;
 
     return {
@@ -86,6 +101,10 @@ const buildTradeRecord = ({
             exitReason,
             entryPrice: roundNumber(openTrade.entryPrice, 4),
             exitPrice: roundNumber(exitPrice, 4),
+            grossPnl: roundNumber(grossPnl),
+            fees: roundNumber(sellFees),
+            tds: roundNumber(transactionTds),
+            incomeTax: roundNumber(incomeTax),
             pnl: roundNumber(pnl),
             entryIndex: openTrade.entryIndex,
             exitIndex
