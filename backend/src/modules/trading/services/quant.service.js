@@ -1,11 +1,9 @@
-import NodeCache from 'node-cache';
 import { ADX, ATR, EMA } from 'technicalindicators';
 
 export const MIN_WARMUP_CANDLES = 150;
 
 const ALMA_OFFSET = 0.85;
 const ALMA_SIGMA = 6;
-const livePositionCache = new NodeCache({ stdTTL: 60 * 60 * 24 * 14, useClones: false });
 
 const roundNumber = (value, decimals = 4) => {
 	if (!Number.isFinite(value)) return null;
@@ -103,22 +101,20 @@ const calculateAlmaSeries = (values, period, offset = ALMA_OFFSET, sigma = ALMA_
 	return result;
 };
 
-const getIndicatorSet = (indicators, indicatorMode = 'EMA') =>
-	indicators.modes[indicatorMode] ?? indicators.modes.EMA;
+const getIndicatorSet = (indicators, indicatorMode = 'EMA') => {
+	return indicators.modes[indicatorMode] ?? indicators.modes.EMA;
+};
 
 const calculateRollingMedian = (values, period) => {
 	const result = Array(values.length).fill(null);
-
 	for (let i = period - 1; i < values.length; i += 1) {
 		const window = values.slice(i - period + 1, i + 1).filter((value) => Number.isFinite(value));
 		if (!window.length) continue;
-
 		const sorted = [...window].sort((left, right) => left - right);
 		const mid = Math.floor(sorted.length / 2);
 		result[i] =
 			sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 	}
-
 	return result;
 };
 
@@ -184,7 +180,6 @@ export const getSignal = (candles, indicators, i, config = {}) => {
 		const regimeFilter = config.regimeFilter ?? true;
 		const regimeK = config.regimeK ?? 0.1;
 		const slMultiplier = config.slMultiplier ?? 1.0;
-		const positionKey = config.positionKey ?? null;
 		const indicatorSet = getIndicatorSet(indicators, indicatorMode);
 
 		const price = safeNumber(candles[i]?.close, null);
@@ -222,82 +217,46 @@ export const getSignal = (candles, indicators, i, config = {}) => {
 		);
 
 		const momentumUp = price > prevClose && price - prevClose > 0.3 * atr14;
-		const momentumDown = price < prevClose && prevClose - price > 0.3 * atr14;
 		const breakoutUp = price > prevHigh;
-		const breakdownDown = price < prevLow;
 
-		const buffer = 0.4 * atr14;
-		const useLadder = adx > 26;
-		const tpMultiplier = adx > 30 ? 4 : 3;
-		const defaultStopLoss = trend - slMultiplier * atr14;
-		const defaultTakeProfit = price + tpMultiplier * atr14;
-
-		const openPosition = positionKey ? livePositionCache.get(positionKey) : null;
 		let signal = 'NO_TRADE';
 		let direction = 0;
-		let stopLoss = defaultStopLoss;
-		let takeProfit = defaultTakeProfit;
 
-		if (openPosition) {
-			stopLoss = safeNumber(openPosition.stopLoss, defaultStopLoss);
-			takeProfit = safeNumber(openPosition.takeProfit, defaultTakeProfit);
-
-			const shouldSell =
-				breakdownDown ||
-				(price < trend && fast < medium && momentumDown) ||
-				price <= stopLoss ||
-				price >= takeProfit;
-
-			if (shouldSell) {
-				signal = 'SELL';
-				direction = -1;
-				livePositionCache.del(positionKey);
-			}
-		} else if (isTrend) {
+		if (isTrend) {
 			const isBull = (price > trend && fast > medium && momentumUp) || breakoutUp;
 			if (isBull) {
 				signal = 'BUY';
 				direction = 1;
-				stopLoss = defaultStopLoss;
-				takeProfit = defaultTakeProfit;
-
-				if (positionKey) {
-					livePositionCache.set(positionKey, {
-						entryPrice: roundNumber(price),
-						stopLoss: roundNumber(stopLoss),
-						takeProfit: roundNumber(takeProfit),
-						openedAt: candles[i]?.time ?? candles[i]?.closeTime ?? Date.now()
-					});
-				}
 			}
 		}
 
+		const buffer = 0.4 * atr14;
 		const limitPrice = price - direction * buffer;
-		const tp1 =
-			direction === 0 ? null : roundNumber(price + direction * 2 * atr14);
+		const stopLoss =
+			direction === 1 ? trend - slMultiplier * atr14 : trend + slMultiplier * atr14;
+
+		const useLadder = adx > 26;
+		const tpMultiplier = adx > 30 ? 4 : 3;
+		const takeProfit = price + direction * tpMultiplier * atr14;
+		const tp1 = roundNumber(price + direction * 2 * atr14);
 
 		const entries =
-			signal === 'BUY'
-				? useLadder
+			signal === 'NO_TRADE'
+				? []
+				: useLadder
 					? [
 							{ type: 'MARKET', price: roundNumber(price), qtyPct: 0.7 },
 							{ type: 'LIMIT', price: roundNumber(limitPrice), qtyPct: 0.2 },
 							{ type: 'LIMIT', price: roundNumber(price - direction * 0.5 * atr14), qtyPct: 0.1 }
 						]
-					: [{ type: 'MARKET', price: roundNumber(price), qtyPct: 1.0 }]
-				: signal === 'SELL'
-					? [{ type: 'MARKET', price: roundNumber(price), qtyPct: 1.0 }]
-					: [];
+					: [{ type: 'MARKET', price: roundNumber(price), qtyPct: 1.0 }];
 
 		return {
 			success: true,
 			signal,
-			score: signal === 'BUY' ? 1 : signal === 'SELL' ? -1 : 0,
+			score: signal === 'BUY' ? 1 : 0,
 			regime: isTrend ? 'TREND' : 'NO_TRADE',
-			context: {
-				phi: signal !== 'NO_TRADE' ? 1 : 0,
-				hasOpenPosition: Boolean(positionKey ? livePositionCache.get(positionKey) : openPosition)
-			},
+			context: { phi: signal !== 'NO_TRADE' ? 1 : 0 },
 			risk: {
 				stopLoss: roundNumber(stopLoss),
 				takeProfit: roundNumber(takeProfit),

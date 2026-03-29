@@ -1,19 +1,19 @@
 :root {
-	--bg: #262624;
-	--bg-elevated: rgba(48, 48, 46, 0.78);
-	--bg-soft: rgba(58, 57, 54, 0.72);
-	--bg-muted: rgba(255, 255, 255, 0.03);
+	--bg: #000000;
+	--bg-elevated: rgba(12, 12, 12, 0.94);
+	--bg-soft: rgba(8, 8, 8, 0.92);
+	--bg-muted: rgba(255, 255, 255, 0.025);
 	--stroke: rgba(255, 255, 255, 0.08);
-	--stroke-strong: rgba(217, 119, 87, 0.3);
-	--text: #f5f1eb;
-	--text-soft: #c0b5aa;
-	--text-dim: #91867c;
-	--buy: #2ce6a6;
-	--sell: #ff6b81;
-	--warn: #ffc857;
-	--brand: #d97757;
-	--brand-strong: #c96846;
-	--shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+	--stroke-strong: rgba(255, 255, 255, 0.16);
+	--text: #ffffff;
+	--text-soft: rgba(255, 255, 255, 0.72);
+	--text-dim: rgba(255, 255, 255, 0.44);
+	--buy: #24c26a;
+	--sell: #e5484d;
+	--warn: #f4c34f;
+	--brand: #e9e9e2;
+	--brand-strong: #bfc5cb;
+	--shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
 	--radius: 20px;
 	--radius-sm: 12px;
 	--page-width: 1320px;
@@ -34,12 +34,8 @@ body {
 }
 
 body {
-	font-family: 'Trebuchet MS', Tahoma, Verdana, sans-serif;
-	background:
-		radial-gradient(circle at top left, rgba(217, 119, 87, 0.2), transparent 22%),
-		radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 18%),
-		radial-gradient(circle at bottom center, rgba(217, 119, 87, 0.08), transparent 24%),
-		linear-gradient(180deg, #262624 0%, #2b2b29 38%, #262624 100%);
+	font-family: 'PP Neue Machina', 'Neue Machina', 'Trebuchet MS', Tahoma, Verdana, sans-serif;
+	background: #000000;
 	color: var(--text);
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
@@ -80,7 +76,7 @@ main {
 }
 
 .glass {
-	background: linear-gradient(180deg, rgba(58, 57, 54, 0.82), rgba(39, 39, 37, 0.7));
+	background: linear-gradient(180deg, rgba(14, 14, 14, 0.94), rgba(4, 4, 4, 0.9));
 	border: 1px solid var(--stroke);
 	box-shadow: var(--shadow);
 	backdrop-filter: blur(20px);
@@ -88,7 +84,7 @@ main {
 
 .panel {
 	background:
-		linear-gradient(180deg, rgba(58, 57, 54, 0.82), rgba(42, 42, 40, 0.68)),
+		linear-gradient(180deg, rgba(16, 16, 16, 0.96), rgba(5, 5, 5, 0.92)),
 		var(--bg-soft);
 	border: 1px solid var(--stroke);
 	border-radius: var(--radius);
@@ -103,7 +99,7 @@ main {
 	padding: 7px 11px;
 	border-radius: 999px;
 	border: 1px solid var(--stroke);
-	background: rgba(255, 255, 255, 0.04);
+	background: rgba(255, 255, 255, 0.03);
 	color: var(--text-soft);
 	font-size: 0.8rem;
 }
@@ -150,21 +146,21 @@ main {
 }
 
 .btn-primary {
-	background: linear-gradient(180deg, #e08a67 0%, var(--brand) 100%);
-	color: white;
-	border-color: rgba(255, 255, 255, 0.08);
-	box-shadow: 0 10px 24px rgba(217, 119, 87, 0.22);
+	background: linear-gradient(180deg, #ffffff 0%, #d9d9d4 100%);
+	color: #050505;
+	border-color: rgba(255, 255, 255, 0.12);
+	box-shadow: 0 10px 24px rgba(255, 255, 255, 0.08);
 }
 
 .btn-secondary {
 	border-color: var(--stroke);
-	background: rgba(255, 255, 255, 0.045);
+	background: rgba(255, 255, 255, 0.03);
 	color: var(--text);
 }
 
 .btn-ghost {
 	border-color: rgba(255, 255, 255, 0.04);
-	background: rgba(255, 255, 255, 0.025);
+	background: rgba(255, 255, 255, 0.018);
 	color: var(--text-soft);
 }
 
@@ -186,7 +182,7 @@ main {
 	padding: 11px 13px;
 	border-radius: 12px;
 	border: 1px solid rgba(255, 255, 255, 0.08);
-	background: rgba(255, 255, 255, 0.045);
+	background: rgba(255, 255, 255, 0.03);
 	color: var(--text);
 	outline: none;
 	transition:
@@ -197,13 +193,13 @@ main {
 
 .input:focus,
 .select:focus {
-	border-color: rgba(217, 119, 87, 0.6);
-	box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.12);
+	border-color: rgba(255, 255, 255, 0.36);
+	box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
 }
 
 .select option,
 .select optgroup {
-	background: #30302e;
+	background: #050505;
 	color: var(--text);
 }
 
@@ -215,15 +211,15 @@ main {
 }
 
 .error-banner {
-	background: rgba(255, 107, 129, 0.12);
-	border: 1px solid rgba(255, 107, 129, 0.22);
-	color: #ffb8c3;
+	background: rgba(229, 72, 77, 0.12);
+	border: 1px solid rgba(229, 72, 77, 0.24);
+	color: #ffb8bb;
 }
 
 .success-banner {
-	background: rgba(44, 230, 166, 0.12);
-	border: 1px solid rgba(44, 230, 166, 0.24);
-	color: #b9ffdf;
+	background: rgba(36, 194, 106, 0.12);
+	border: 1px solid rgba(36, 194, 106, 0.24);
+	color: #b8f4cf;
 }
 
 .stat-grid {
@@ -235,7 +231,7 @@ main {
 .stat-card {
 	padding: 14px;
 	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.035);
+	background: rgba(255, 255, 255, 0.025);
 	border: 1px solid rgba(255, 255, 255, 0.06);
 }
 

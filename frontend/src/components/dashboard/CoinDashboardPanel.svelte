@@ -89,8 +89,8 @@
 			signal={panel.signal}
 			heading={panel.symbol}
 			eyebrow="Live spot-execution board"
-			showLegend={false}
-			showEmaOverlay={false}
+			showLegend={true}
+			showEmaOverlay={true}
 			compact={true}
 		/>
 
@@ -149,7 +149,7 @@
 
 	.coin-panel__eyebrow,
 	.coin-panel__news-label {
-		color: var(--text-dim);
+		color: rgba(255, 255, 255, 0.48);
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.16em;
@@ -175,8 +175,8 @@
 	.coin-panel__signal {
 		padding: 10px 12px;
 		border-radius: 14px;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.03);
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
@@ -185,11 +185,11 @@
 	}
 
 	.coin-panel__signal[data-tone='buy'] {
-		box-shadow: inset 0 0 0 1px rgba(44, 230, 166, 0.16);
+		box-shadow: inset 0 0 0 1px rgba(36, 194, 106, 0.18);
 	}
 
 	.coin-panel__signal[data-tone='sell'] {
-		box-shadow: inset 0 0 0 1px rgba(255, 107, 129, 0.16);
+		box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.18);
 	}
 
 	.coin-panel__signal-label {
@@ -207,11 +207,14 @@
 	.coin-panel :global(.stat-card) {
 		padding: 9px 8px;
 		min-width: 0;
+		background: rgba(255, 255, 255, 0.02);
+		border-color: rgba(255, 255, 255, 0.08);
 	}
 
 	.coin-panel :global(.stat-label) {
 		font-size: 0.62rem;
 		letter-spacing: 0.07em;
+		color: rgba(255, 255, 255, 0.44);
 	}
 
 	.coin-panel :global(.stat-value) {
@@ -221,6 +224,7 @@
 		line-height: 1.2;
 		word-break: break-word;
 		overflow-wrap: anywhere;
+		color: rgba(255, 255, 255, 0.92);
 	}
 
 	.coin-panel__ai-shell {
@@ -238,12 +242,12 @@
 	.coin-panel__news {
 		padding: 10px 12px;
 		border-radius: 14px;
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
 	.coin-panel__reasoning {
-		color: var(--text-soft);
+		color: rgba(255, 255, 255, 0.74);
 		font-size: 0.82rem;
 		line-height: 1.45;
 		white-space: pre-wrap;
@@ -252,13 +256,13 @@
 	.coin-panel__news ul {
 		margin: 6px 0 0;
 		padding-left: 16px;
-		color: var(--text-soft);
+		color: rgba(255, 255, 255, 0.68);
 		font-size: 0.78rem;
 		line-height: 1.4;
 	}
 
 	.coin-panel__muted {
-		color: var(--text-soft);
+		color: rgba(255, 255, 255, 0.62);
 		font-size: 0.82rem;
 	}
 

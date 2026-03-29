@@ -4,6 +4,7 @@ import { getSignal as getQuantSignal, buildLadderIndicators } from "../../tradin
 
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
+import { buildExecutionSignal } from "../services/execution.service.js";
 
 const SIGNAL_OUTPUTSIZE = 240;
 
@@ -30,16 +31,20 @@ Backend  → Frontend   (data BHEJNA — response) */
         
         const candles = marketData.data;
         const indicators = buildLadderIndicators(candles);
-        const signal = getQuantSignal(candles, indicators, candles.length - 1, {
-            positionKey: `${cleanSymbol}_${cleanInterval}`
-        });
+        const quantSignal = getQuantSignal(candles, indicators, candles.length - 1);
 
-        if(!signal.success){
+        if(!quantSignal.success){
             return res.status(422).json({
                 success:false,
-                message: signal.error || `Insufficient processed data for ${cleanSymbol} ${cleanInterval}. Need at least 150 fully warmed candles.`
+                message: quantSignal.error || `Insufficient processed data for ${cleanSymbol} ${cleanInterval}. Need at least 150 fully warmed candles.`
             })
         }
+        const signal = buildExecutionSignal(
+            quantSignal,
+            candles,
+            indicators,
+            `${cleanSymbol}_${cleanInterval}`
+        );
         return res.status(200).json({
             success:true,
             data:{
@@ -47,7 +52,12 @@ Backend  → Frontend   (data BHEJNA — response) */
                 symbol: cleanSymbol,
                 interval: cleanInterval,
                 currentPrice: marketData.data.at(-1)?.close ?? null,
-                candles: marketData.data
+                candles: marketData.data,
+                indicatorSeries: {
+                    ema9: indicators?.modes?.EMA?.fast ?? [],
+                    ema11: indicators?.modes?.EMA?.medium ?? [],
+                    ema45: indicators?.modes?.EMA?.trend ?? []
+                }
             }
         })
 

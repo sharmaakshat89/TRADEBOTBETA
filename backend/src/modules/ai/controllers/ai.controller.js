@@ -2,6 +2,7 @@ import { getAIValidation } from "../services/ai.service.js";
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
 import { buildLadderIndicators, getSignal } from "../../trading/services/quant.service.js";
+import { buildExecutionSignal } from "../../signal/services/execution.service.js";
 
 const AI_OUTPUTSIZE = 240;
 
@@ -23,9 +24,7 @@ export const getAIAnalysis = async (req, res) => {
         }
 
         const indicators = buildLadderIndicators(marketData.data);
-        const quantSignal = getSignal(marketData.data, indicators, marketData.data.length - 1, {
-            positionKey: `${cleanSymbol}_${cleanInterval}`
-        });
+        const quantSignal = getSignal(marketData.data, indicators, marketData.data.length - 1);
 
         if (!quantSignal.success) {
             return res.status(422).json({
@@ -34,16 +33,23 @@ export const getAIAnalysis = async (req, res) => {
             });
         }
 
+        const executionSignal = buildExecutionSignal(
+            quantSignal,
+            marketData.data,
+            indicators,
+            `${cleanSymbol}_${cleanInterval}`
+        );
+
         const aiResult = await getAIValidation(
             cleanSymbol,
             cleanInterval,
-            quantSignal,
+            executionSignal,
             {
-                ...quantSignal.indicators,
-                ema9: quantSignal.indicators?.fast ?? null,
-                ema11: quantSignal.indicators?.medium ?? null,
-                ema45: quantSignal.indicators?.trend ?? null,
-                adr: quantSignal.indicators?.atr14 ?? null
+                ...executionSignal.indicators,
+                ema9: executionSignal.indicators?.fast ?? null,
+                ema11: executionSignal.indicators?.medium ?? null,
+                ema45: executionSignal.indicators?.trend ?? null,
+                adr: executionSignal.indicators?.atr14 ?? null
             },
             marketData.data
         );
@@ -59,15 +65,16 @@ export const getAIAnalysis = async (req, res) => {
             success: true,
             data: {
                 quantSignal: {
-                    signal: quantSignal.signal,
-                    score: quantSignal.score,
-                    risk: quantSignal.risk,
+                    signal: executionSignal.signal,
+                    score: executionSignal.score,
+                    risk: executionSignal.risk,
+                    context: executionSignal.context,
                     indicators: {
-                        ...quantSignal.indicators,
-                        ema9: quantSignal.indicators?.fast ?? null,
-                        ema11: quantSignal.indicators?.medium ?? null,
-                        ema45: quantSignal.indicators?.trend ?? null,
-                        adr: quantSignal.indicators?.atr14 ?? null
+                        ...executionSignal.indicators,
+                        ema9: executionSignal.indicators?.fast ?? null,
+                        ema11: executionSignal.indicators?.medium ?? null,
+                        ema45: executionSignal.indicators?.trend ?? null,
+                        adr: executionSignal.indicators?.atr14 ?? null
                     }
                 },
                 aiValidation: {

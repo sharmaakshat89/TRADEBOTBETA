@@ -15,7 +15,9 @@
 	let containerRef = $state(null);
 	let chart = null;
 	let candleSeries = null;
-	let emaSeries = null;
+	let ema9Series = null;
+	let ema11Series = null;
+	let ema45Series = null;
 	let resizeObserver = null;
 
 	const getChartHeight = () => {
@@ -36,15 +38,23 @@
 		const priceCandles = Array.isArray(candles) ? candles : [];
 		candleSeries.setData(priceCandles);
 
-		const ema45Series = signal?.indicatorSeries?.ema45 ?? signal?.indicatorSeries?.ema50 ?? [];
-		if (showEmaOverlay && priceCandles.length && Array.isArray(ema45Series)) {
-			const points = priceCandles
-				.slice(-ema45Series.length)
-				.map((candle, index) => ({ time: candle.time, value: ema45Series[index] }))
+		const toOverlayPoints = (series) =>
+			priceCandles
+				.slice(-series.length)
+				.map((candle, index) => ({ time: candle.time, value: series[index] }))
 				.filter((point) => Number.isFinite(point.value));
-			emaSeries?.setData(points);
+
+		if (showEmaOverlay && priceCandles.length) {
+			const ema9Values = signal?.indicatorSeries?.ema9 ?? [];
+			const ema11Values = signal?.indicatorSeries?.ema11 ?? [];
+			const ema45Values = signal?.indicatorSeries?.ema45 ?? signal?.indicatorSeries?.ema50 ?? [];
+			ema9Series?.setData(Array.isArray(ema9Values) ? toOverlayPoints(ema9Values) : []);
+			ema11Series?.setData(Array.isArray(ema11Values) ? toOverlayPoints(ema11Values) : []);
+			ema45Series?.setData(Array.isArray(ema45Values) ? toOverlayPoints(ema45Values) : []);
 		} else {
-			emaSeries?.setData([]);
+			ema9Series?.setData([]);
+			ema11Series?.setData([]);
+			ema45Series?.setData([]);
 		}
 
 		chart.timeScale().fitContent();
@@ -56,41 +66,53 @@
 		chart = createChart(containerRef, {
 			layout: {
 				background: { color: 'transparent' },
-				textColor: '#9eb5d4',
-				fontFamily: 'Trebuchet MS, Tahoma, Verdana, sans-serif',
+				textColor: 'rgba(255,255,255,0.72)',
+				fontFamily: '"PP Neue Machina", "Neue Machina", "Trebuchet MS", sans-serif',
 				fontSize: compact ? 9 : 12
 			},
 			grid: {
-				vertLines: { color: 'rgba(151, 183, 255, 0.08)' },
-				horzLines: { color: 'rgba(151, 183, 255, 0.08)' }
+				vertLines: { color: 'rgba(255, 255, 255, 0.06)' },
+				horzLines: { color: 'rgba(255, 255, 255, 0.06)' }
 			},
 			rightPriceScale: {
-				borderColor: 'rgba(151, 183, 255, 0.12)'
+				borderColor: 'rgba(255, 255, 255, 0.14)'
 			},
 			timeScale: {
-				borderColor: 'rgba(151, 183, 255, 0.12)',
+				borderColor: 'rgba(255, 255, 255, 0.14)',
 				timeVisible: true,
 				secondsVisible: false
 			},
 			crosshair: {
-				vertLine: { color: 'rgba(99, 164, 255, 0.35)' },
-				horzLine: { color: 'rgba(99, 164, 255, 0.2)' }
+				vertLine: { color: 'rgba(255, 255, 255, 0.24)' },
+				horzLine: { color: 'rgba(255, 255, 255, 0.16)' }
 			},
 			height: getChartHeight()
 		});
 
 		candleSeries = chart.addSeries(CandlestickSeries, {
-			upColor: '#2ce6a6',
-			downColor: '#ff6b81',
+			upColor: '#24c26a',
+			downColor: '#e5484d',
 			borderVisible: false,
-			wickUpColor: '#2ce6a6',
-			wickDownColor: '#ff6b81'
+			wickUpColor: '#24c26a',
+			wickDownColor: '#e5484d'
 		});
 
 		if (showEmaOverlay) {
-			emaSeries = chart.addSeries(LineSeries, {
-				color: '#63a4ff',
-				lineWidth: 2,
+			ema9Series = chart.addSeries(LineSeries, {
+				color: '#f5f5f2',
+				lineWidth: 1.8,
+				priceLineVisible: false
+			});
+
+			ema11Series = chart.addSeries(LineSeries, {
+				color: '#a8a8a2',
+				lineWidth: 1.6,
+				priceLineVisible: false
+			});
+
+			ema45Series = chart.addSeries(LineSeries, {
+				color: '#8c9aa5',
+				lineWidth: 1.8,
 				priceLineVisible: false
 			});
 		}
@@ -125,7 +147,9 @@
 			<div class="chart-panel__legend">
 				<span><i class="buy"></i> Candles</span>
 				{#if showEmaOverlay}
-					<span><i class="ema"></i> EMA 45</span>
+					<span><i class="ema9"></i> EMA 9</span>
+					<span><i class="ema11"></i> EMA 11</span>
+					<span><i class="ema45"></i> EMA 45</span>
 				{/if}
 			</div>
 		{/if}
@@ -149,7 +173,7 @@
 	}
 
 	.chart-panel__eyebrow {
-		color: var(--text-dim);
+		color: rgba(255, 255, 255, 0.45);
 		font-size: 0.8rem;
 		text-transform: uppercase;
 		letter-spacing: 0.18em;
@@ -159,7 +183,7 @@
 		display: flex;
 		gap: 10px;
 		flex-wrap: wrap;
-		color: var(--text-soft);
+		color: rgba(255, 255, 255, 0.68);
 		font-size: 0.8rem;
 	}
 
@@ -177,11 +201,19 @@
 	}
 
 	.chart-panel__legend i.buy {
-		background: var(--buy);
+		background: #24c26a;
 	}
 
-	.chart-panel__legend i.ema {
-		background: var(--brand);
+	.chart-panel__legend i.ema9 {
+		background: #f5f5f2;
+	}
+
+	.chart-panel__legend i.ema11 {
+		background: #a8a8a2;
+	}
+
+	.chart-panel__legend i.ema45 {
+		background: #8c9aa5;
 	}
 
 	.chart-panel__surface {
@@ -204,8 +236,8 @@
 	:global(.coin-panel) .chart-panel__surface {
 		min-height: 0;
 		border-radius: 14px;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.06);
+		background: #050505;
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
 	@media (max-width: 640px) {
