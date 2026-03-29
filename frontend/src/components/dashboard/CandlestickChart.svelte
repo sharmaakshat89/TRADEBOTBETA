@@ -2,7 +2,15 @@
 	import { onMount } from 'svelte';
 	import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 
-	let { candles = [], signal = null } = $props();
+	let {
+		candles = [],
+		signal = null,
+		heading = 'Live futures structure',
+		eyebrow = 'TradingView Charts',
+		showLegend = true,
+		showEmaOverlay = true,
+		compact = false
+	} = $props();
 
 	let containerRef = $state(null);
 	let chart = null;
@@ -11,7 +19,12 @@
 	let resizeObserver = null;
 
 	const getChartHeight = () => {
-		if (typeof window === 'undefined') return 560;
+		if (typeof window === 'undefined') return compact ? 320 : 560;
+		if (compact) {
+			if (window.innerWidth <= 640) return Math.max(260, Math.min(window.innerHeight * 0.34, 320));
+			if (window.innerWidth <= 1024) return 300;
+			return 320;
+		}
 		if (window.innerWidth <= 640) return Math.max(420, Math.min(window.innerHeight * 0.62, 560));
 		if (window.innerWidth <= 1024) return 500;
 		return 560;
@@ -23,11 +36,11 @@
 		const priceCandles = Array.isArray(candles) ? candles : [];
 		candleSeries.setData(priceCandles);
 
-		const ema50Series = signal?.indicatorSeries?.ema50 ?? [];
-		if (priceCandles.length && Array.isArray(ema50Series)) {
+		const ema45Series = signal?.indicatorSeries?.ema45 ?? signal?.indicatorSeries?.ema50 ?? [];
+		if (showEmaOverlay && priceCandles.length && Array.isArray(ema45Series)) {
 			const points = priceCandles
-				.slice(-ema50Series.length)
-				.map((candle, index) => ({ time: candle.time, value: ema50Series[index] }))
+				.slice(-ema45Series.length)
+				.map((candle, index) => ({ time: candle.time, value: ema45Series[index] }))
 				.filter((point) => Number.isFinite(point.value));
 			emaSeries?.setData(points);
 		} else {
@@ -44,7 +57,8 @@
 			layout: {
 				background: { color: 'transparent' },
 				textColor: '#9eb5d4',
-				fontFamily: 'Trebuchet MS, Tahoma, Verdana, sans-serif'
+				fontFamily: 'Trebuchet MS, Tahoma, Verdana, sans-serif',
+				fontSize: compact ? 9 : 12
 			},
 			grid: {
 				vertLines: { color: 'rgba(151, 183, 255, 0.08)' },
@@ -73,11 +87,13 @@
 			wickDownColor: '#ff6b81'
 		});
 
-		emaSeries = chart.addSeries(LineSeries, {
-			color: '#63a4ff',
-			lineWidth: 2,
-			priceLineVisible: false
-		});
+		if (showEmaOverlay) {
+			emaSeries = chart.addSeries(LineSeries, {
+				color: '#63a4ff',
+				lineWidth: 2,
+				priceLineVisible: false
+			});
+		}
 
 		updateSeries();
 
@@ -102,13 +118,17 @@
 <section class="panel chart-panel">
 	<div class="chart-panel__header">
 		<div>
-			<p class="chart-panel__eyebrow">TradingView Charts</p>
-			<h2>Live futures structure</h2>
+			<p class="chart-panel__eyebrow">{eyebrow}</p>
+			<h2>{heading}</h2>
 		</div>
-		<div class="chart-panel__legend">
-			<span><i class="buy"></i> Candles</span>
-			<span><i class="ema"></i> EMA50</span>
-		</div>
+		{#if showLegend}
+			<div class="chart-panel__legend">
+				<span><i class="buy"></i> Candles</span>
+				{#if showEmaOverlay}
+					<span><i class="ema"></i> EMA 45</span>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div class="chart-panel__surface" bind:this={containerRef}></div>
@@ -168,6 +188,24 @@
 		min-height: 560px;
 		border-radius: 16px;
 		overflow: hidden;
+	}
+
+	:global(.coin-panel) .chart-panel {
+		padding: 0;
+		border: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+
+	:global(.coin-panel) .chart-panel__header {
+		margin-bottom: 8px;
+	}
+
+	:global(.coin-panel) .chart-panel__surface {
+		min-height: 0;
+		border-radius: 14px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	@media (max-width: 640px) {

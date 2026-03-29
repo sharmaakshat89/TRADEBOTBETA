@@ -1,8 +1,8 @@
 {
   "symbol": "SOL/USDT",
-  "interval": "1h",
-  "lookback": "2Y",
-  "generatedAt": "2026-03-26T18:17:12.492Z",
+  "interval": "1day",
+  "lookback": "1Y",
+  "generatedAt": "2026-03-26T18:49:48.899Z",
   "runs": [
     {}
   ]

@@ -1,140 +1,171 @@
 <script>
-	import { onMount } from 'svelte'; // lifecycle for guard and init
-	import { goto } from '$app/navigation'; // redirect helper
-	import { get } from 'svelte/store'; // read auth snapshot
-	import { gsap } from 'gsap'; // page animation
-	import api from '$lib/api'; // axios client
-	import websocketManager from '$lib/websocket'; // socket singleton
-	import { authStore } from '$lib/stores/authStore'; // auth state
-	import { marketStore } from '$lib/stores/marketStore'; // market state
-	import SymbolDropdown from '$components/dashboard/SymbolDropdown.svelte'; // symbol selector
-	import IntervalDropdown from '$components/dashboard/IntervalDropdown.svelte'; // interval selector
-	import CandlestickChart from '$components/dashboard/CandlestickChart.svelte'; // chart component
-	import IndicatorPanel from '$components/dashboard/IndicatorPanel.svelte'; // indicator component
-	import SignalCard from '$components/dashboard/SignalCard.svelte'; // signal card
-	import AIAdvicePanel from '$components/dashboard/AIAdvicePanel.svelte'; // ai panel
-	import Loader from '$components/shared/Loader.svelte'; // loading component
-	import { allowedIntervals, symbolGroups } from '$lib/config/markets'; // shared market options
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { get } from 'svelte/store';
+	import { gsap } from 'gsap';
+	import api from '$lib/api';
+	import { authStore } from '$lib/stores/authStore';
+	import CoinDashboardPanel from '$components/dashboard/CoinDashboardPanel.svelte';
 
-	let pageRef = $state(null); // page wrapper ref
-	let loadingSignal = $state(false); // signal request loading
-	let loadingAI = $state(false); // ai request loading
-	let pageError = $state(''); // route level error
-	let aiError = $state(''); // ai panel error
+	const DASHBOARD_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
+	const FIXED_INTERVAL = '1h';
+	const POLL_MS = 45000;
+
+	let pageRef = $state(null);
+	let pageError = $state('');
+	let pollingTimer = null;
+
+	const createPanel = (symbol) => ({
+		symbol,
+		interval: FIXED_INTERVAL,
+		signal: null,
+		candles: [],
+		loadingSignal: false,
+		loadingAI: false,
+		error: '',
+		aiError: '',
+		aiValidation: null
+	});
+
+	let panels = $state(DASHBOARD_SYMBOLS.map(createPanel));
 
 	const redirectToLogin = async () => {
-		authStore.clearAuth(); // clear stale or missing auth state
-		await goto('/login'); // return to auth flow
+		authStore.clearAuth();
+		await goto('/login');
 	};
 
-	const refreshSignal = async () => {
-		const auth = get(authStore); // read auth before protected request
+	const updatePanel = (symbol, patch) => {
+		panels = panels.map((panel) => (panel.symbol === symbol ? { ...panel, ...patch } : panel));
+	};
 
-		if (!auth?.token) {
-			await redirectToLogin(); // stop if no token is available
-			return;
+	const normalizeSignalPayload = (payload, symbol) => {
+		const indicators = payload?.indicators ?? {};
+
+		return {
+			...payload,
+			symbol,
+			interval: FIXED_INTERVAL,
+			indicators: {
+				...indicators,
+				ema9: indicators.ema9 ?? indicators.fast ?? null,
+				ema11: indicators.ema11 ?? indicators.medium ?? null,
+				ema45: indicators.ema45 ?? indicators.trend ?? null,
+				adr: indicators.adr ?? indicators.atr14 ?? null
+			}
+		};
+	};
+
+	const fetchSignalForSymbol = async (symbol, { silent = false } = {}) => {
+		if (!silent) {
+			updatePanel(symbol, { loadingSignal: true, error: '' });
 		}
-
-		const state = get(marketStore); // read market selection
-		loadingSignal = true; // start signal loading
-		pageError = ''; // clear old error
 
 		try {
 			const response = await api.get('/signal', {
-				params: {
-					symbol: state.symbol, // backend query param
-					interval: state.interval // backend query param
-				}
+				params: { symbol, interval: FIXED_INTERVAL },
+				timeout: 30000
 			});
 
-			const payload = response?.data?.data ?? {}; // normalize signal payload
-			marketStore.setSignal(payload ?? null); // store raw signal payload
-			marketStore.setCandles(payload?.candles ?? []); // ensure chart has immediate data
+			const payload = response?.data?.data ?? {};
+			updatePanel(symbol, {
+				signal: normalizeSignalPayload(payload, symbol),
+				candles: Array.isArray(payload?.candles) ? payload.candles : [],
+				loadingSignal: false,
+				error: ''
+			});
 		} catch (requestError) {
 			if (requestError?.response?.status === 401) {
-				await redirectToLogin(); // expired sessions should not stay on dashboard
+				await redirectToLogin();
 				return;
 			}
 
-			pageError =
-				requestError?.response?.data?.error ??
-				requestError?.response?.data?.message ??
-				'Unable to fetch signal.'; // support both backend shapes
-		} finally {
-			loadingSignal = false; // stop signal loading
+			updatePanel(symbol, {
+				loadingSignal: false,
+				error:
+					requestError?.response?.data?.error ??
+					requestError?.response?.data?.message ??
+					`Unable to load ${symbol}.`
+			});
 		}
 	};
 
-	const refreshAI = async () => {
-		const auth = get(authStore); // read auth before protected request
+	const refreshBoard = async ({ silent = false } = {}) => {
+		pageError = '';
+		await Promise.all(DASHBOARD_SYMBOLS.map((symbol) => fetchSignalForSymbol(symbol, { silent })));
 
+		if (panels.every((panel) => panel.error)) {
+			pageError = 'Unable to load the live futures board right now.';
+		}
+	};
+
+	const runAIValidation = async (symbol) => {
+		const auth = get(authStore);
 		if (!auth?.token) {
-			await redirectToLogin(); // stop if no token is available
+			await redirectToLogin();
 			return;
 		}
 
-		const state = get(marketStore); // read market selection
-		loadingAI = true; // start ai loading
-		aiError = ''; // clear stale ai error
+		updatePanel(symbol, { loadingAI: true, aiError: '' });
 
 		try {
-			const response = await api.post('/ai/analyze', {
-				symbol: state.symbol, // backend body shape
-				interval: state.interval // backend body shape
-			});
+			const response = await api.post(
+				'/ai/analyze',
+				{ symbol, interval: FIXED_INTERVAL },
+				{ timeout: 45000 }
+			);
 
-			const payload = response?.data?.data ?? {}; // ai response payload
-			marketStore.setSignal(payload?.quantSignal ?? get(marketStore).signal); // keep quant payload synced
-			marketStore.setAIAnalysis(payload?.aiValidation ?? null); // store ai validation
+			const payload = response?.data?.data ?? {};
+			updatePanel(symbol, {
+				loadingAI: false,
+				aiError: '',
+				signal: payload?.quantSignal
+					? normalizeSignalPayload(payload.quantSignal, symbol)
+					: panels.find((panel) => panel.symbol === symbol)?.signal,
+				aiValidation: payload?.aiValidation ?? null
+			});
 		} catch (requestError) {
 			if (requestError?.response?.status === 401) {
-				await redirectToLogin(); // expired sessions should not stay on dashboard
+				await redirectToLogin();
 				return;
 			}
 
-			aiError =
-				requestError?.response?.data?.error ??
-				requestError?.response?.data?.message ??
-				'Unable to fetch AI analysis.'; // support both error and message
-		} finally {
-			loadingAI = false; // stop ai loading
+			updatePanel(symbol, {
+				loadingAI: false,
+				aiError:
+					requestError?.response?.data?.error ??
+					requestError?.response?.data?.message ??
+					'Unable to run AI validation right now.'
+			});
 		}
 	};
 
-	const updateSelection = async ({ symbol, interval }) => {
-		marketStore.setSelection({ symbol, interval }); // store selection change
-		marketStore.setAIAnalysis(null); // reset stale ai result on selection change
-		websocketManager.subscribe({ symbol, interval }); // re-subscribe live feed
-		await refreshSignal(); // refresh quant signal for new selection
-	};
-
 	onMount(async () => {
-		const auth = get(authStore); // inspect auth state at mount
-
+		const auth = get(authStore);
 		if (!auth?.isAuthenticated || !auth?.token) {
-			await goto('/login'); // protect dashboard route
-			return; // stop dashboard init
+			await goto('/login');
+			return;
 		}
 
 		if (pageRef) {
 			gsap.fromTo(
 				pageRef.children,
-				{ y: 24, opacity: 0 }, // initial hidden state
-				{
-					y: 0, // final position
-					opacity: 1, // final opacity
-					duration: 0.7, // reveal duration
-					stagger: 0.08, // sequential reveal
-					ease: 'power3.out' // smooth easing
-				}
+				{ y: 20, opacity: 0 },
+				{ y: 0, opacity: 1, duration: 0.6, stagger: 0.07, ease: 'power3.out' }
 			);
 		}
 
-		websocketManager.connect(); // start live market feed only for valid sessions
-		await refreshSignal(); // fetch initial signal
+		await refreshBoard();
+
+		pollingTimer = window.setInterval(() => {
+			if (document.visibilityState === 'visible') {
+				refreshBoard({ silent: true });
+			}
+		}, POLL_MS);
 
 		return () => {
-			websocketManager.close(); // clean socket on route leave
+			if (pollingTimer) {
+				clearInterval(pollingTimer);
+			}
 		};
 	});
 </script>
@@ -144,27 +175,20 @@
 </svelte:head>
 
 <section class="dashboard page-shell" bind:this={pageRef}>
-	<div class="panel dashboard__toolbar">
-		<div class="dashboard__toolbar-grid">
-			<SymbolDropdown
-				value={$marketStore.symbol}
-				groups={symbolGroups}
-				onchange={(event) => updateSelection({ symbol: event.currentTarget.value })}
-			/>
-			<IntervalDropdown
-				value={$marketStore.interval}
-				options={allowedIntervals}
-				onchange={(event) => updateSelection({ interval: event.currentTarget.value })}
-			/>
+	<div class="panel dashboard__hero">
+		<div>
+			<p class="dashboard__eyebrow">Fixed 1H market board</p>
+			<h1>BTC, ETH, and SOL in one view.</h1>
+			<p class="dashboard__copy">
+				Live Binance futures data powers spot-style signals, with one compact AI validation path per coin.
+			</p>
 		</div>
 
-		<div class="dashboard__toolbar-actions">
-			<div class="pill">WS: {$marketStore.wsStatus}</div>
-			<button class="btn btn-secondary" onclick={refreshSignal} disabled={loadingSignal}>
-				{loadingSignal ? 'Refreshing...' : 'Refresh Signal'}
-			</button>
-			<button class="btn btn-primary" onclick={refreshAI} disabled={loadingAI}>
-				{loadingAI ? 'Analyzing...' : 'Run AI Analysis'}
+		<div class="dashboard__hero-actions">
+			<span class="pill mono">3 Coins</span>
+			<span class="pill mono">1H Only</span>
+			<button class="btn btn-secondary" onclick={() => refreshBoard()} disabled={panels.some((panel) => panel.loadingSignal)}>
+				Refresh Board
 			</button>
 		</div>
 	</div>
@@ -174,50 +198,44 @@
 	{/if}
 
 	<div class="dashboard__grid">
-		<div class="dashboard__main">
-			<CandlestickChart candles={$marketStore.candles} signal={$marketStore.signal} />
-			<IndicatorPanel signal={$marketStore.signal} />
-		</div>
-
-		<div class="dashboard__side">
-			{#if loadingSignal && !$marketStore.signal}
-				<div class="panel dashboard__loading">
-					<Loader label="Loading signal" />
-				</div>
-			{:else}
-				<SignalCard signal={$marketStore.signal} currentPrice={$marketStore.candles.at(-1)?.close} />
-			{/if}
-
-			<AIAdvicePanel aiValidation={$marketStore.aiAnalysis} loading={loadingAI} error={aiError} />
-		</div>
+		{#each panels as panel (panel.symbol)}
+			<CoinDashboardPanel {panel} onRunAI={runAIValidation} />
+		{/each}
 	</div>
 </section>
 
 <style>
 	.dashboard {
-		width: min(100% - 10px, 1380px);
+		width: min(100% - 12px, 1540px);
 		padding: 10px 0 28px;
 		display: grid;
-		gap: 10px;
+		gap: 12px;
 	}
 
-	.dashboard__toolbar {
-		padding: 10px;
+	.dashboard__hero {
+		padding: 14px;
 		display: flex;
-		align-items: center;
+		align-items: start;
 		justify-content: space-between;
-		gap: 10px;
+		gap: 12px;
 		flex-wrap: wrap;
 	}
 
-	.dashboard__toolbar-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(150px, 190px));
-		gap: 10px;
-		flex: 1;
+	.dashboard__eyebrow {
+		color: var(--text-dim);
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.18em;
+		margin-bottom: 6px;
 	}
 
-	.dashboard__toolbar-actions {
+	.dashboard__copy {
+		max-width: 62ch;
+		color: var(--text-soft);
+		margin-top: 6px;
+	}
+
+	.dashboard__hero-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -226,71 +244,35 @@
 
 	.dashboard__grid {
 		display: grid;
-		grid-template-columns: minmax(0, 2.65fr) minmax(250px, 0.72fr);
-		gap: 10px;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
 		align-items: start;
 	}
 
-	.dashboard__main,
-	.dashboard__side {
-		display: grid;
-		gap: 10px;
-	}
-
-	.dashboard__loading {
-		padding: 20px;
-	}
-
-	@media (max-width: 1024px) {
+	@media (max-width: 1180px) {
 		.dashboard__grid {
-			grid-template-columns: 1fr;
-		}
-
-		.dashboard__side {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 
 	@media (max-width: 760px) {
 		.dashboard {
-			width: min(100% - 8px, 1400px);
+			width: min(100% - 8px, 1540px);
 			padding-top: 6px;
+			gap: 10px;
 		}
 
-		.dashboard__toolbar-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			width: 100%;
+		.dashboard__hero {
+			padding: 12px;
 		}
 
-		.dashboard__toolbar-actions {
-			width: 100%;
-			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
-		.dashboard__toolbar-actions .pill {
-			grid-column: 1 / -1;
-			justify-content: center;
-		}
-
-		.dashboard__side {
+		.dashboard__grid {
 			grid-template-columns: 1fr;
+			gap: 10px;
 		}
 
-		.dashboard__main,
-		.dashboard__side {
-			gap: 8px;
-		}
-	}
-
-	@media (max-width: 520px) {
-		.dashboard__toolbar {
-			padding: 10px;
-		}
-
-		.dashboard__toolbar-grid,
-		.dashboard__toolbar-actions {
-			grid-template-columns: 1fr;
+		.dashboard__hero-actions {
+			width: 100%;
 		}
 	}
 </style>

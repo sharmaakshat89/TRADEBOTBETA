@@ -1,7 +1,9 @@
 import { getAIValidation } from "../services/ai.service.js";
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
-import { getSignal } from "../../trading/services/quant.service.js";
+import { buildLadderIndicators, getSignal } from "../../trading/services/quant.service.js";
+
+const AI_OUTPUTSIZE = 240;
 
 export const getAIAnalysis = async (req, res) => {
     try {
@@ -11,7 +13,7 @@ export const getAIAnalysis = async (req, res) => {
             interval
         );
 
-        const marketData = await fetchMarketData(cleanSymbol, cleanInterval);
+        const marketData = await fetchMarketData(cleanSymbol, cleanInterval, AI_OUTPUTSIZE);
 
         if (!marketData.success) {
             return res.status(503).json({
@@ -20,7 +22,10 @@ export const getAIAnalysis = async (req, res) => {
             });
         }
 
-        const quantSignal = getSignal(cleanSymbol, cleanInterval, marketData.data);
+        const indicators = buildLadderIndicators(marketData.data);
+        const quantSignal = getSignal(marketData.data, indicators, marketData.data.length - 1, {
+            positionKey: `${cleanSymbol}_${cleanInterval}`
+        });
 
         if (!quantSignal.success) {
             return res.status(422).json({
@@ -33,7 +38,13 @@ export const getAIAnalysis = async (req, res) => {
             cleanSymbol,
             cleanInterval,
             quantSignal,
-            quantSignal.indicators,
+            {
+                ...quantSignal.indicators,
+                ema9: quantSignal.indicators?.fast ?? null,
+                ema11: quantSignal.indicators?.medium ?? null,
+                ema45: quantSignal.indicators?.trend ?? null,
+                adr: quantSignal.indicators?.atr14 ?? null
+            },
             marketData.data
         );
 
@@ -51,13 +62,20 @@ export const getAIAnalysis = async (req, res) => {
                     signal: quantSignal.signal,
                     score: quantSignal.score,
                     risk: quantSignal.risk,
-                    indicators: quantSignal.indicators
+                    indicators: {
+                        ...quantSignal.indicators,
+                        ema9: quantSignal.indicators?.fast ?? null,
+                        ema11: quantSignal.indicators?.medium ?? null,
+                        ema45: quantSignal.indicators?.trend ?? null,
+                        adr: quantSignal.indicators?.atr14 ?? null
+                    }
                 },
                 aiValidation: {
                     aiSignal: aiResult.data.aiSignal,
                     reasoning: aiResult.data.reasoning,
                     agreesWithQuant: aiResult.data.agreesWithQuant,
-                    source: aiResult.source
+                    source: aiResult.source,
+                    headlines: aiResult.data.headlines ?? []
                 }
             }
         });

@@ -5,6 +5,8 @@ import { getSignal as getQuantSignal, buildLadderIndicators } from "../../tradin
 import { fetchMarketData } from "../../market/services/market.service.js";
 import { validateSymbolAndInterval } from "../../market/market.constants.js";
 
+const SIGNAL_OUTPUTSIZE = 240;
+
 export const getSignal = async(req,res)=>{
 
     try{
@@ -16,7 +18,7 @@ Backend  → Frontend   (data BHEJNA — response) */
 
         const { symbol: cleanSymbol, interval: cleanInterval } = validateSymbolAndInterval(symbol, interval)
 
-        const marketData = await fetchMarketData(cleanSymbol,cleanInterval)
+        const marketData = await fetchMarketData(cleanSymbol,cleanInterval,SIGNAL_OUTPUTSIZE)
             //fetching candles from api
 
         if(!marketData.success){
@@ -28,12 +30,14 @@ Backend  → Frontend   (data BHEJNA — response) */
         
         const candles = marketData.data;
         const indicators = buildLadderIndicators(candles);
-        const signal = getQuantSignal(candles, indicators, candles.length - 1);
+        const signal = getQuantSignal(candles, indicators, candles.length - 1, {
+            positionKey: `${cleanSymbol}_${cleanInterval}`
+        });
 
         if(!signal.success){
             return res.status(422).json({
                 success:false,
-                message:signal.error // 422 means unprocessable, either insuff data or couldn't be processed
+                message: signal.error || `Insufficient processed data for ${cleanSymbol} ${cleanInterval}. Need at least 150 fully warmed candles.`
             })
         }
         return res.status(200).json({
